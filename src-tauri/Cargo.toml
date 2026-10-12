@@ -24,6 +24,10 @@ tauri-plugin-autostart = "2"
 tauri-plugin-sql = { version = "2", features = ["sqlite"] }
 tauri-plugin-dialog = "2"
 tauri-plugin-notification = "2"
+# Auto-update from GitHub Releases (see src/core/updater.ts, docs/RELEASING.md)
+# and process::relaunch to restart into the new version afterwards.
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 # sync-secret-service is the Linux D-Bus backend — excluded here because we
@@ -48,6 +52,15 @@ windows-icons = "0.4.0"
 pollster = "1.0.1"
 windows = { version = "0.62.2", features = ["Media_Control", "Foundation", "Storage_Streams", "Win32_System_Com"] }
 windows-future = "0.3.2"
+
+# System media-session reading on macOS — see src-tauri/src/system_media.rs.
+# media-remote wraps the private MediaRemote framework and, on macOS 15.4+,
+# reads it through the bundled mediaremote-adapter (run by /usr/bin/perl).
+# `image` is only here to downscale + PNG-encode the album cover it returns;
+# the version must stay on the same 0.25 line media-remote uses.
+[target.'cfg(target_os = "macos")'.dependencies]
+media-remote = "0.5.1"
+image = { version = "0.25", default-features = false, features = ["png"] }
 
 # ── Build profiles ────────────────────────────────────────────────────────────
 

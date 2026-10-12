@@ -1,12 +1,7 @@
 import { MusicProvider } from "./provider";
 
 const UNAVAILABLE_REASON =
-  "ROADMAP.md named Odesli polling for this, but Odesli/song.link resolves a *known* track link across services " +
-  "(e.g. \"here's this Spotify link, what's the YouTube Music equivalent\") — it has no concept of what's " +
-  "currently playing on someone's account, so it can't drive a live now-playing widget by itself. There's also " +
-  "no public YouTube Music \"now playing\" API to poll. A real implementation needs some other way to detect " +
-  "what's playing first (e.g. reading the OS media-session info most platforms expose) before Odesli could even " +
-  "be used for the cross-service link. Cut for this session, see PROGRESS.md Milestone 5 notes.";
+  "Use \"Now Playing (this device)\" instead — it already picks up YouTube Music in any browser from the system media controls on Windows and macOS, with no account or developer setup. A dedicated integration would need a \"now playing\" API that YouTube Music doesn't offer.";
 
 /** Not implemented this session — see UNAVAILABLE_REASON. */
 export const youtubeMusicProvider: MusicProvider = {

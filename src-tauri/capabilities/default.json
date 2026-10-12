@@ -18,6 +18,8 @@
     "sql:allow-execute",
     "sql:allow-select",
     "dialog:default",
-    "notification:default"
+    "notification:default",
+    "updater:default",
+    "process:allow-restart"
   ]
 }

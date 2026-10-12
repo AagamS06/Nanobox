@@ -1,0 +1,104 @@
+name: Release
+
+# Builds installers for a tagged version and attaches them, plus the
+# updater's `latest.json` and signatures, to a DRAFT GitHub Release.
+#
+# Nothing reaches users until you click "Publish release" on that draft:
+# the in-app updater reads /releases/latest/, which ignores drafts.
+#
+# Full walkthrough (one-time key setup, version bumps, tagging):
+# docs/RELEASING.md
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write # create the draft release and upload assets
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Fail in seconds with a clear message instead of 20 minutes into a
+      # native build. Both of these are one-time setup steps in RELEASING.md.
+      - name: Check updater signing is configured
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        run: |
+          if [ -z "$TAURI_SIGNING_PRIVATE_KEY" ]; then
+            echo "::error::Repository secret TAURI_SIGNING_PRIVATE_KEY is not set. See docs/RELEASING.md, step 1."
+            exit 1
+          fi
+          if grep -q "REPLACE_WITH_UPDATER_PUBLIC_KEY" src-tauri/tauri.conf.json; then
+            echo "::error::plugins.updater.pubkey in src-tauri/tauri.conf.json is still the placeholder. See docs/RELEASING.md, step 1."
+            exit 1
+          fi
+
+      - name: Check tag matches app version
+        run: |
+          APP_VERSION=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          if [ "${GITHUB_REF_NAME}" != "v${APP_VERSION}" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} doesn't match tauri.conf.json version ${APP_VERSION}. Bump the version (docs/RELEASING.md, step 2) or retag."
+            exit 1
+          fi
+
+  build:
+    needs: preflight
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows-latest
+            args: ""
+            rust-targets: ""
+          # One universal binary covers both Apple Silicon and Intel Macs,
+          # matching the platform targets promised in the README.
+          - platform: macos-latest
+            args: "--target universal-apple-darwin"
+            rust-targets: "aarch64-apple-darwin,x86_64-apple-darwin"
+
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust-targets }}
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build and upload to draft release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Signs the *update bundles* so the in-app updater can verify them.
+          # This is separate from Windows Authenticode / Apple notarisation.
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: "Nanobox ${{ github.ref_name }}"
+          releaseBody: "See PROGRESS.md for what changed. Installers are not yet code-signed — see the README for how to open them."
+          releaseDraft: true
+          prerelease: false
+          # createUpdaterArtifacts lives in this override file rather than
+          # tauri.conf.json, so the everyday build.yml CI (which has no
+          # signing key) keeps working unchanged.
+          args: "${{ matrix.args }} --config src-tauri/tauri.release.conf.json"

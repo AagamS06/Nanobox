@@ -14,15 +14,20 @@
 //! GlobalSystemMediaTransportControlsSessionManager` (SMTC) via the
 //! `windows` crate's WinRT bindings.
 //!
-//! macOS/Linux: there is no public equivalent today. macOS would require
-//! the private, unversioned `MediaRemote.framework` (no documented API,
-//! liable to break across OS updates, and the kind of thing that's unsafe
-//! to ship rather than "not yet implemented"); Linux's MPRIS D-Bus
-//! interface is a plausible future addition but is out of scope for this
-//! pass. `get_system_now_playing` returns `Ok(None)` on those platforms —
-//! see `src/integrations/music/systemMedia.ts`, which only marks this
-//! provider `implemented: true` on Windows in the first place, so the
-//! widget doesn't even offer it elsewhere.
+//! macOS: there is no public equivalent. The data lives behind the private
+//! `MediaRemote.framework`, and since macOS 15.4 `mediaremoted` refuses
+//! clients that lack an Apple-only entitlement. We read it through the
+//! `media-remote` crate's `NowPlayingPerl`, which wraps ungive's
+//! `mediaremote-adapter`: a small framework loaded by the Apple-signed
+//! `/usr/bin/perl` (which the daemon *does* trust), streaming JSON back on
+//! stdout. No SIP changes, no extra permissions prompt. It is still a
+//! private-framework workaround, so treat it as best-effort — if a future
+//! macOS update breaks it, the command degrades to `Ok(None)` ("nothing
+//! playing") rather than an error, and Spotify OAuth keeps working.
+//!
+//! Linux: MPRIS over D-Bus is a plausible future addition; out of scope for
+//! now. `get_system_now_playing` returns `Ok(None)` there, and
+//! `src/integrations/music/systemMedia.ts` doesn't offer the provider.
 
 use serde::Serialize;
 
@@ -47,13 +52,130 @@ pub fn get_system_now_playing() -> Result<Option<SystemNowPlaying>, String> {
     windows_impl::current().map_err(|e| e.to_string())
 }
 
-#[cfg(not(target_os = "windows"))]
+#[cfg(target_os = "macos")]
 #[tauri::command]
 pub fn get_system_now_playing() -> Result<Option<SystemNowPlaying>, String> {
-    // See module doc comment — no safe public "now playing" API on this
+    Ok(macos_impl::current())
+}
+
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
+#[tauri::command]
+pub fn get_system_now_playing() -> Result<Option<SystemNowPlaying>, String> {
+    // See module doc comment — no "now playing" source wired up on this
     // platform. The frontend provider isn't marked `implemented` here
     // anyway, so this is a defensive fallback rather than the primary path.
     Ok(None)
+}
+
+#[cfg(target_os = "macos")]
+mod macos_impl {
+    use super::SystemNowPlaying;
+    use base64::Engine;
+    use media_remote::NowPlayingPerl;
+    use std::io::Cursor;
+    use std::path::Path;
+    use std::sync::{Mutex, OnceLock};
+
+    /// Path the adapter is launched with. Apple has shipped a system Perl at
+    /// this path on every macOS release Nanobox targets; we still check for
+    /// it, because `NowPlayingPerl` spawns it with `.expect(..)` on a
+    /// background thread, and with `panic = "abort"` in the release profile
+    /// a missing interpreter would take the whole app down.
+    const SYSTEM_PERL: &str = "/usr/bin/perl";
+
+    /// Artwork is downscaled before encoding so the IPC payload stays small
+    /// (the widget never renders it larger than this).
+    const ARTWORK_MAX_PX: u32 = 300;
+
+    /// One long-lived reader for the whole app. Created lazily on the first
+    /// poll, i.e. only once the user has actually picked "Now Playing" as
+    /// their music source — no background `perl` process otherwise.
+    /// `None` inside means "unavailable on this machine", cached so we
+    /// don't re-probe every 10 seconds.
+    static READER: OnceLock<Option<NowPlayingPerl>> = OnceLock::new();
+
+    /// Last encoded artwork, keyed by track, so a 10-second poll doesn't
+    /// re-encode the same PNG over and over.
+    static ARTWORK_CACHE: Mutex<Option<(String, Option<String>)>> = Mutex::new(None);
+
+    fn reader() -> Option<&'static NowPlayingPerl> {
+        READER
+            .get_or_init(|| {
+                if !Path::new(SYSTEM_PERL).exists() {
+                    return None;
+                }
+                Some(NowPlayingPerl::new())
+            })
+            .as_ref()
+    }
+
+    pub fn current() -> Option<SystemNowPlaying> {
+        let reader = reader()?;
+        // `get_info` also advances the elapsed time for a playing track, so
+        // the progress bar keeps moving between the adapter's own updates.
+        let guard = reader.get_info();
+        let info = guard.as_ref()?;
+
+        let title = info.title.clone().unwrap_or_default();
+        if title.is_empty() {
+            return None;
+        }
+        let artist = info.artist.clone().unwrap_or_default();
+        let album = info.album.clone().filter(|s| !s.is_empty());
+
+        let is_playing = info
+            .is_playing
+            .unwrap_or_else(|| info.playback_rate.map(|r| r > 0.0).unwrap_or(false));
+
+        let position_ms = info.elapsed_time.map(secs_to_ms);
+        let duration_ms = info.duration.map(secs_to_ms).filter(|&d| d > 0);
+
+        let key = format!("{title}\u{1f}{artist}\u{1f}{}", album.as_deref().unwrap_or(""));
+        let artwork_base64 = {
+            let mut cache = ARTWORK_CACHE.lock().unwrap_or_else(|e| e.into_inner());
+            match cache.as_ref() {
+                // Only reuse a cached cover that actually exists: the
+                // adapter can send the cover a moment after the title, so
+                // keep retrying while the cached value is still `None`.
+                Some((cached_key, Some(art))) if *cached_key == key => Some(art.clone()),
+                _ => {
+                    let art = info.album_cover.as_ref().and_then(encode_artwork);
+                    *cache = Some((key, art.clone()));
+                    art
+                }
+            }
+        };
+
+        Some(SystemNowPlaying {
+            title,
+            artist,
+            album,
+            is_playing,
+            position_ms,
+            duration_ms,
+            artwork_base64,
+        })
+    }
+
+    fn encode_artwork(img: &image::DynamicImage) -> Option<String> {
+        let thumb = if img.width() > ARTWORK_MAX_PX || img.height() > ARTWORK_MAX_PX {
+            img.thumbnail(ARTWORK_MAX_PX, ARTWORK_MAX_PX)
+        } else {
+            img.clone()
+        };
+        let mut buf = Cursor::new(Vec::new());
+        thumb.write_to(&mut buf, image::ImageFormat::Png).ok()?;
+        let encoded = base64::engine::general_purpose::STANDARD.encode(buf.into_inner());
+        Some(format!("data:image/png;base64,{encoded}"))
+    }
+
+    fn secs_to_ms(secs: f64) -> u64 {
+        if secs.is_finite() && secs > 0.0 {
+            (secs * 1000.0) as u64
+        } else {
+            0
+        }
+    }
 }
 
 #[cfg(target_os = "windows")]
