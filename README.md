@@ -62,7 +62,7 @@ nanobox/
 
 Nanobox isn't on an app store or as a packaged installer yet — running it
 from source is the only way to use it right now. Once signed releases exist
-they'll be linked from the [GitHub Releases page](https://github.com/AShah-01/Nanobox/releases)
+they'll be linked from the [GitHub Releases page](https://github.com/AagamS06/Nanobox/releases)
 and from this README.
 
 ---
@@ -100,7 +100,7 @@ Alternatively, download the [Visual Studio Build Tools](https://visualstudio.mic
 #### 4 — Clone and install
 
 ```bash
-git clone https://github.com/AShah-01/Nanobox.git
+git clone https://github.com/AagamS06/Nanobox.git
 cd Nanobox
 npm install
 ```
@@ -176,7 +176,7 @@ On Apple Silicon, `rustup` installs the `aarch64-apple-darwin` target automatica
 #### 4 — Clone and install
 
 ```bash
-git clone https://github.com/AShah-01/Nanobox.git
+git clone https://github.com/AagamS06/Nanobox.git
 cd Nanobox
 npm install
 ```
@@ -212,7 +212,7 @@ All three should print a version. If `rustc`/`cargo` are not found, run `source 
 #### Known macOS caveats
 
 - **Unsigned builds trigger a Gatekeeper warning.** Right-click → Open, or strip the quarantine flag with `xattr -d com.apple.quarantine path/to/Nanobox.app`. Code signing and notarization are Milestone 8 items.
-- **The overlay window and tray icon are untested on real hardware.** The app compiles and runs in CI, but its macOS-specific behaviour (always-on-bottom window, menu bar icon, launch on login) has never been verified by a human on a physical Mac. If something looks wrong, please [open an issue](https://github.com/AShah-01/Nanobox/issues).
+- **The overlay window and tray icon are untested on real hardware.** The app compiles and runs in CI, but its macOS-specific behaviour (always-on-bottom window, menu bar icon, launch on login) has never been verified by a human on a physical Mac. If something looks wrong, please [open an issue](https://github.com/AagamS06/Nanobox/issues).
 - **CSS rendering differences.** WKWebView (macOS) and WebView2 (Windows) render some CSS differently — notably `backdrop-filter`, custom scrollbars, and font metrics. Expect minor visual differences from the Windows screenshots.
 
 ---
@@ -220,7 +220,7 @@ All three should print a version. If `rustc`/`cargo` are not found, run `source 
 ### Grab a build without building it yourself
 
 Every push to `main` builds Nanobox on both Windows and macOS via
-[GitHub Actions](https://github.com/AShah-01/Nanobox/actions/workflows/build.yml)
+[GitHub Actions](https://github.com/AagamS06/Nanobox/actions/workflows/build.yml)
 and uploads the result — an MSI + NSIS installer for Windows, a DMG for
 macOS — as a workflow artifact. Open the latest successful run and download
 `nanobox-windows` or `nanobox-macos` from the Artifacts section at the
@@ -236,6 +236,7 @@ whatever launched them.
 ## Docs
 
 - [docs/WIDGETS.md](docs/WIDGETS.md) — every built-in widget and what it does
+- [docs/RELEASING.md](docs/RELEASING.md) — cutting a release, the updater key, and the code-signing plan
 - [docs/BLOCK_ENGINE.md](docs/BLOCK_ENGINE.md) — how the visual block/lego
   engine works under the hood (AST, evaluator, standard library)
 
@@ -252,21 +253,23 @@ desktop widget hub), issues and PRs are genuinely welcome. It's early and
 the codebase moves fast, so an issue proposing what you'd like to work on
 before a big PR will save both of us time.
 
-### 🎵 Help wanted — Music widget
+### 🎵 Music widget
 
-The Music widget currently supports **Spotify** (OAuth PKCE, developer app required) and the
-**OS media session** (Windows SMTC — picks up anything playing audio, no setup).
-Two providers we'd love to add but are genuinely blocked on:
+The Music widget supports **Spotify** (OAuth PKCE, developer app required) and
+**Now Playing (this device)**, which reads the OS media session with no setup:
 
-- **Apple Music** — requires a private-key-signed JWT from an Apple Developer
-  account. There's no public API path that works client-side without one.
-  If you have an Apple Developer account and want to tackle this, the stub
-  is at `src/integrations/music/appleMusic.ts` with full notes on the blocker.
-- **YouTube Music** — no official "now playing" API exists. A browser
-  extension or companion approach may be the only viable route. If you've
-  solved this elsewhere, we'd love to know how.
+- **Windows:** System Media Transport Controls, the same source as the taskbar
+  media flyout.
+- **macOS:** the system Now Playing info, read through
+  [mediaremote-adapter](https://github.com/ungive/mediaremote-adapter) via the
+  `media-remote` crate (needed since macOS 15.4 locked down the private
+  MediaRemote framework). Best-effort: a future macOS update could break it.
+  **Untested on real hardware so far.**
 
-Open an issue tagged `music` if you have a working approach for either.
+Because every major player reports to the OS media session, Now Playing
+already covers the **Apple Music app** and **YouTube Music in a browser**, so
+dedicated Apple Music / YouTube Music integrations are on hold. Open an issue
+tagged `music` if you need something the media session can't give you.
 
 ### 🍎 Help wanted — macOS
 
@@ -280,6 +283,9 @@ platform-level behaviour is untested on Apple hardware:
   the tray icon may not appear in the right place.
 - **Launch on login** — uses a launchd agent on macOS; the autostart path
   has not been verified.
+- **Now Playing (Music widget)** — the macOS media-session reader is new and
+  has only been type-checked, never run. Try it with Apple Music, Spotify and
+  a YouTube tab, on macOS 15.4+ if possible.
 - **Window dragging** — `startDragging()` is a Tauri API that should work
   cross-platform, but the feel (title bar height, drag region) hasn't been
   tuned for macOS.
@@ -310,9 +316,9 @@ The gap we want help closing:
 - **One-command install from a release** — ideally `winget install Nanobox`
   on Windows and `brew install --cask nanobox` on macOS. Getting into those
   registries requires a signed, versioned release first.
-- **Auto-update** — Tauri has a built-in updater plugin (`tauri-plugin-updater`)
-  that we haven't wired up. Once signing is sorted, this is the next step so
-  users don't have to manually reinstall on every release.
+- **Auto-update** — ✅ wired up via `tauri-plugin-updater` against GitHub
+  Releases, with signed update bundles. Goes live with the first tagged
+  release. See [docs/RELEASING.md](docs/RELEASING.md).
 
 If you've shipped a Tauri app through to a real signed release (especially on
 Windows, especially with auto-update), your experience would be directly

@@ -1,11 +1,7 @@
 import { MusicProvider } from "./provider";
 
 const UNAVAILABLE_REASON =
-  "MusicKit JS needs a developer token: a JWT signed with an Apple Developer Program private key (ES256). " +
-  "That signing step can't happen safely in a pure client-side desktop app — the private key would have to ship " +
-  "inside the binary, which defeats the point of it being a secret. A real implementation needs either a small " +
-  "token-signing backend (which Nanobox, local-first and serverless, doesn't have) or a manual per-user " +
-  "paste-your-own-token flow. Cut for this session, see PROGRESS.md Milestone 5 notes.";
+  "Use \"Now Playing (this device)\" instead — it already picks up the Apple Music app from the system media controls on Windows and macOS, with no account or developer setup. A dedicated integration would need an Apple Developer-signed MusicKit token, which a local-first app can't ship safely.";
 
 /** Not implemented this session — see UNAVAILABLE_REASON. */
 export const appleMusicProvider: MusicProvider = {

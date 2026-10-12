@@ -157,7 +157,7 @@ All P0–P3 bugs from the initial audit have been fixed. Remaining open items ar
 ## How to Run
 
 ```bash
-git clone https://github.com/AShah-01/Nanobox.git
+git clone https://github.com/AagamS06/Nanobox.git
 cd Nanobox
 npm install
 npm run tauri dev

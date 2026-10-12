@@ -13,9 +13,9 @@ long-term-support branch yet.
 
 Please **do not** open a public GitHub issue for security vulnerabilities.
 
-Instead, report privately via GitHub's [Security Advisories](https://github.com/AShah-01/Nanobox/security/advisories/new)
+Instead, report privately via GitHub's [Security Advisories](https://github.com/AagamS06/Nanobox/security/advisories/new)
 for this repository, or email the maintainer directly at the address listed on
-the [GitHub profile](https://github.com/AShah-01).
+the [GitHub profile](https://github.com/AagamS06).
 
 Include:
 - A description of the vulnerability and its impact

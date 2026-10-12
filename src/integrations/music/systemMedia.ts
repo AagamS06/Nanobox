@@ -14,24 +14,30 @@ import { MusicProvider } from "./provider";
  * complete answer to "connect other music systems" than adding one more
  * single-service API integration would be.
  *
- * Windows-only for now — see the Rust module's doc comment for why macOS
- * doesn't have a safe public equivalent. `implemented` is computed from
- * the webview's platform at module load, so the widget simply doesn't
- * offer this provider (falls into the "soon" bucket like Apple Music /
- * YouTube Music) anywhere the underlying command can't work.
+ * Windows (SMTC) and macOS (MediaRemote via mediaremote-adapter) — see the
+ * Rust module's doc comment. `implemented` is computed from the webview's
+ * platform at module load, so the widget simply doesn't offer this
+ * provider anywhere the underlying command can't work (Linux, for now).
  */
 
-function isWindows(): boolean {
-  if (typeof navigator === "undefined") return false;
-  const platform = navigator.platform || navigator.userAgent || "";
-  return /win/i.test(platform);
+function platformString(): string {
+  if (typeof navigator === "undefined") return "";
+  return navigator.platform || navigator.userAgent || "";
 }
 
-const IMPLEMENTED = isWindows();
+function isWindows(): boolean {
+  return /win/i.test(platformString());
+}
+
+function isMac(): boolean {
+  return /mac/i.test(platformString());
+}
+
+const IMPLEMENTED = isWindows() || isMac();
 
 const UNAVAILABLE_REASON =
-  "Reads the OS's native media-session info (Windows' System Media Transport Controls, same as the taskbar's " +
-  "media flyout) — no public equivalent exists on this platform yet, so this provider is Windows-only for now.";
+  "Reads the OS's native media-session info (the same source as the Windows taskbar media flyout or the macOS " +
+  "Control Center Now Playing tile) — not wired up on this platform yet.";
 
 interface SystemNowPlayingResponse {
   title: string;
