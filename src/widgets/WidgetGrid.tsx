@@ -14,6 +14,7 @@ import { BORDER_STYLE_LABELS, BORDER_STYLES, borderStyleCss, BorderStyleId } fro
 import { CustomWidget } from "./built-in";
 import { WidgetChromeContext } from "./WidgetChromeContext";
 import { DEFAULT_SIZE, WIDGET_LABELS, WIDGET_REGISTRY, WidgetId } from "./registry";
+import { findFreeSpot } from "./placement";
 import "./WidgetGrid.css";
 
 const GRID_SNAP = 8;
@@ -72,6 +73,7 @@ export function WidgetGrid() {
   const [addMenuOpen, setAddMenuOpen] = useState(false);
   const [hideOthers, setHideOthersState] = useState(isHidingOthers());
   const [gridError, setGridError] = useState(false);
+  const [justAddedId, setJustAddedId] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
 
@@ -106,9 +108,20 @@ export function WidgetGrid() {
 
   function addWidget(type: WidgetId) {
     const size = DEFAULT_SIZE[type];
-    const offset = instances.length * 16;
-    createWidgetInstance({ widget_type: type, x: snap(24 + offset), y: snap(24 + offset), ...size })
-      .then(refresh)
+    const container = containerRef.current;
+    const { x, y } = findFreeSpot(instances, size, {
+      bounds: { width: container?.clientWidth ?? 960, height: container?.clientHeight ?? 640 },
+      step: GRID_SNAP,
+    });
+    createWidgetInstance({ widget_type: type, x: snap(x), y: snap(y), ...size })
+      .then(async (id) => {
+        await refresh();
+        // Briefly highlight the new widget so it's obvious where it went.
+        if (typeof id === "number") {
+          setJustAddedId(id);
+          setTimeout(() => setJustAddedId((current) => (current === id ? null : current)), 1600);
+        }
+      })
       .catch((err) => console.error("failed to add widget", err));
     setAddMenuOpen(false);
   }
@@ -292,7 +305,7 @@ export function WidgetGrid() {
         return (
           <div
             key={instance.id}
-            className={`widget-grid__cell ${hideOthers && !isFocusMode ? "is-dimmed" : ""}`}
+            className={`widget-grid__cell ${hideOthers && !isFocusMode ? "is-dimmed" : ""} ${justAddedId === instance.id ? "is-new" : ""}`}
             style={cellStyle(instance, isPopoverOpen ? draft : undefined)}
           >
             {isPopoverOpen && (

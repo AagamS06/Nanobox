@@ -26,9 +26,26 @@
         "skipTaskbar": false,
         "shadow": false,
         "visible": true,
-        "alwaysOnBottom": true
+        "alwaysOnBottom": true,
+        "backgroundThrottling": "disabled"
+      },
+      {
+        "label": "island",
+        "title": "Nanobox Island",
+        "url": "index.html",
+        "width": 300,
+        "height": 44,
+        "decorations": false,
+        "transparent": true,
+        "resizable": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "shadow": false,
+        "visible": false,
+        "focus": false
       }
     ],
+    "macOSPrivateApi": true,
     "security": {
       "csp": null
     }

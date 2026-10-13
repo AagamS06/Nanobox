@@ -261,7 +261,7 @@ async function executeBlock(
       const firstOutput = def.outputs[0]?.id;
       return ok(firstOutput ? { [firstOutput]: value } : {}, value);
     } catch (err) {
-      return fail(`Custom block "${def.id}" threw: ${err instanceof Error ? err.message : String(err)}`);
+      return fail(`Custom block "${def.label}": ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 

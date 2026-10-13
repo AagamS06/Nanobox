@@ -3,6 +3,7 @@ import { getBlockProgram, listBlockPrograms, BlockProgramRow } from "../../../st
 import { evaluateProgram } from "../../../integrations/blockEngine/evaluator";
 import { initBlockLibrary } from "../../../integrations/blockEngine/blockLibrary";
 import { liveBridge } from "../../../integrations/blockEngine/bridge";
+import { ensureCustomBlockDefsLoaded } from "../../../integrations/blockEngine/customBlockLoader";
 import type { BlockProgram } from "../../../integrations/blockEngine/types";
 import { DEFAULT_BLOCK_INTERVAL_MS, type BlockWidgetConfig } from "../CustomWidget/settings";
 import "./BlockWidget.css";
@@ -92,6 +93,9 @@ export function BlockWidget({ config: saved, onSave, onProgramName }: BlockWidge
         }
         setProgramName(row.name);
         const program = JSON.parse(row.program_json) as BlockProgram;
+        // Programs may use the user's own custom blocks, which have to be
+        // registered before they can be validated or run.
+        await ensureCustomBlockDefsLoaded().catch((err) => console.error("failed to load custom blocks", err));
         const evalResult = await evaluateProgram(program, liveBridge);
         if (cancelled) return;
         setResult(

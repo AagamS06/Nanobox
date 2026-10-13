@@ -1,5 +1,4 @@
-import { useEffect, useRef, useState } from "react";
-import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
+import { useEffect, useState } from "react";
 import { WidgetFrame } from "../../../components/WidgetFrame";
 import {
   Alarm as AlarmRecord,
@@ -7,29 +6,27 @@ import {
   createAlarm,
   deleteAlarm,
   listAlarms,
-  markAlarmFired,
   setAlarmEnabled,
-  snoozeAlarm,
 } from "../../../storage/alarms";
+import { DAY_LABELS } from "../../../core/schedule";
+import {
+  dismissAlarm,
+  isRinging,
+  SCHEDULER_EVENT,
+  SNOOZE_MINUTES,
+  snoozeAlarm,
+  subscribeRinging,
+} from "../../../core/scheduler";
 import { playTone } from "./tones";
 import "./Alarm.css";
 
-const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const SNOOZE_MINUTES = 5;
-
-function todayIso(d: Date) {
-  return d.toISOString().slice(0, 10);
-}
-
-function dayMatches(days: string, date: Date) {
-  if (!days) return true; // empty = every day
-  const today = DAY_LABELS[date.getDay()];
-  return days.split(",").includes(today);
-}
-
+/**
+ * Shows and edits alarms. Firing them is the app-wide scheduler's job
+ * (src/core/scheduler.ts), so alarms keep working when this widget is closed.
+ */
 export function Alarm() {
   const [alarms, setAlarms] = useState<AlarmRecord[]>([]);
-  const [ringing, setRinging] = useState<Set<number>>(new Set());
+  const [, setRingingVersion] = useState(0);
   const [showForm, setShowForm] = useState(false);
   const [label, setLabel] = useState("");
   const [time, setTime] = useState("07:00");
@@ -37,8 +34,6 @@ export function Alarm() {
   const [sound, setSound] = useState<AlarmSound>(
     (localStorage.getItem("settings:defaultSound") as AlarmSound) || "chime",
   );
-  const ringingRef = useRef(ringing);
-  ringingRef.current = ringing;
 
   const [dbError, setDbError] = useState(false);
 
@@ -51,54 +46,22 @@ export function Alarm() {
       console.error("failed to load alarms", err);
       setDbError(true);
     });
-    isPermissionGranted().then((granted) => {
-      if (!granted) requestPermission().catch(() => {});
-    });
+    const onFired = () => void refresh().catch(() => {});
+    window.addEventListener(SCHEDULER_EVENT, onFired);
+    const unsubscribe = subscribeRinging(() => setRingingVersion((v) => v + 1));
+    return () => {
+      window.removeEventListener(SCHEDULER_EVENT, onFired);
+      unsubscribe();
+    };
   }, []);
-
-  useEffect(() => {
-    const id = setInterval(async () => {
-      const now = new Date();
-      const current = await listAlarms();
-      for (const a of current) {
-        if (!a.enabled || ringingRef.current.has(a.id)) continue;
-
-        if (a.snoozed_until) {
-          if (new Date(a.snoozed_until) <= now) fire(a);
-          continue;
-        }
-
-        if (a.last_fired_on === todayIso(now)) continue;
-        if (a.time === now.toTimeString().slice(0, 5) && dayMatches(a.days, now)) fire(a);
-      }
-    }, 20_000);
-    return () => clearInterval(id);
-  }, []);
-
-  function fire(alarm: AlarmRecord) {
-    setRinging((prev) => new Set(prev).add(alarm.id));
-    playTone(alarm.sound);
-    sendNotification({ title: alarm.label || "Nanobox alarm", body: alarm.time });
-  }
 
   async function dismiss(id: number) {
-    setRinging((prev) => {
-      const next = new Set(prev);
-      next.delete(id);
-      return next;
-    });
-    await markAlarmFired(id, todayIso(new Date()));
+    await dismissAlarm(id);
     await refresh();
   }
 
   async function snooze(id: number) {
-    setRinging((prev) => {
-      const next = new Set(prev);
-      next.delete(id);
-      return next;
-    });
-    const until = new Date(Date.now() + SNOOZE_MINUTES * 60_000).toISOString();
-    await snoozeAlarm(id, until);
+    await snoozeAlarm(id);
     await refresh();
   }
 
@@ -122,8 +85,8 @@ export function Alarm() {
         {dbError && <p className="alarm-widget__hint">⚠ Failed to load alarms. Restart the app to retry.</p>}
         <ul className="alarm-widget__list">
           {alarms.map((a) => (
-            <li key={a.id} className={`alarm-widget__item ${ringing.has(a.id) ? "is-ringing" : ""}`}>
-              {ringing.has(a.id) ? (
+            <li key={a.id} className={`alarm-widget__item ${isRinging(a.id) ? "is-ringing" : ""}`}>
+              {isRinging(a.id) ? (
                 <div className="alarm-widget__ringing">
                   <span>
                     ⏰ {a.label || "Alarm"} — {a.time}

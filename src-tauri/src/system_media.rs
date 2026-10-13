@@ -58,6 +58,44 @@ pub fn get_system_now_playing() -> Result<Option<SystemNowPlaying>, String> {
     Ok(macos_impl::current())
 }
 
+/// Play/pause/skip for whatever app holds the system media session — used
+/// by the island's Music tab. `action` is "toggle", "next" or "previous".
+#[tauri::command]
+pub fn system_media_control(action: String) -> Result<(), String> {
+    let action = MediaAction::parse(&action).ok_or_else(|| format!("Unknown media action: {action}"))?;
+    #[cfg(target_os = "windows")]
+    {
+        windows_impl::control(action).map_err(|e| e.to_string())
+    }
+    #[cfg(target_os = "macos")]
+    {
+        macos_impl::control(action)
+    }
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+    {
+        let _ = action;
+        Err("Media controls aren't available on this platform.".into())
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum MediaAction {
+    Toggle,
+    Next,
+    Previous,
+}
+
+impl MediaAction {
+    fn parse(s: &str) -> Option<Self> {
+        match s {
+            "toggle" => Some(Self::Toggle),
+            "next" => Some(Self::Next),
+            "previous" => Some(Self::Previous),
+            _ => None,
+        }
+    }
+}
+
 #[cfg(not(any(target_os = "windows", target_os = "macos")))]
 #[tauri::command]
 pub fn get_system_now_playing() -> Result<Option<SystemNowPlaying>, String> {
@@ -155,6 +193,21 @@ mod macos_impl {
             duration_ms,
             artwork_base64,
         })
+    }
+
+    pub fn control(action: super::MediaAction) -> Result<(), String> {
+        use media_remote::Controller;
+        let reader = reader().ok_or("Now Playing isn't available on this Mac.")?;
+        let ok = match action {
+            super::MediaAction::Toggle => reader.toggle(),
+            super::MediaAction::Next => reader.next(),
+            super::MediaAction::Previous => reader.previous(),
+        };
+        if ok {
+            Ok(())
+        } else {
+            Err("The playing app didn't accept the command.".into())
+        }
     }
 
     fn encode_artwork(img: &image::DynamicImage) -> Option<String> {
@@ -293,6 +346,24 @@ mod windows_impl {
                 duration_ms,
                 artwork_base64,
             }))
+        })
+    }
+
+    pub fn control(action: super::MediaAction) -> windows::core::Result<()> {
+        unsafe {
+            let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
+        }
+        pollster::block_on(async {
+            let manager = SessionManager::RequestAsync()?.await?;
+            let Ok(session) = manager.GetCurrentSession() else {
+                return Ok(()); // nothing playing — nothing to control
+            };
+            let _accepted = match action {
+                super::MediaAction::Toggle => session.TryTogglePlayPauseAsync()?.await?,
+                super::MediaAction::Next => session.TrySkipNextAsync()?.await?,
+                super::MediaAction::Previous => session.TrySkipPreviousAsync()?.await?,
+            };
+            Ok(())
         })
     }
 

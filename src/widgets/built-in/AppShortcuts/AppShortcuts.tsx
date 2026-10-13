@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
-import { openPath } from "@tauri-apps/plugin-opener";
+import { openTarget } from "../../../core/launcher";
+import { SHORTCUTS_CHANGED_EVENT } from "../../../core/crossWindow";
 import { WidgetFrame } from "../../../components/WidgetFrame";
 import {
   createShortcut,
@@ -41,6 +42,10 @@ export function AppShortcuts() {
 
   useEffect(() => {
     refresh().catch((err) => console.error("failed to load shortcuts", err));
+    // The island's Apps tab can add shortcuts from the other window.
+    const onChanged = () => void refresh().catch(() => {});
+    window.addEventListener(SHORTCUTS_CHANGED_EVENT, onChanged);
+    return () => window.removeEventListener(SHORTCUTS_CHANGED_EVENT, onChanged);
   }, []);
 
   // Close the right-click menu on outside click or Escape — same pattern as
@@ -121,7 +126,7 @@ export function AppShortcuts() {
 
   async function launch(s: Shortcut) {
     try {
-      await openPath(s.target_path);
+      await openTarget(s.target_path);
     } catch (err) {
       console.error("failed to launch shortcut", err);
     }

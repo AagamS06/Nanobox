@@ -1,7 +1,9 @@
 import { getSetting, setSetting } from "../storage/settings";
 import { DEFAULT_THEME, isThemeId, ThemeId } from "../themes/themes";
 import { deriveShades } from "./colorShades";
+import { applyColorblindPalette, isColorblindPalette } from "./colorblindPalette";
 import { BorderStyleId, borderStyleCss } from "./widgetBorderStyles";
+import { broadcast, THEME_CHANGED_EVENT } from "./crossWindow";
 
 /** Minimal external store (same shape as focusModeStore) for the active theme, persisted via app_settings. */
 type Listener = () => void;
@@ -87,15 +89,20 @@ function applyCustomization(id: ThemeId) {
   const custom = getThemeCustomization(id);
   const root = document.documentElement.style;
 
-  if (custom.tint) {
+  // Accent precedence: colourblind palette > this theme's tint > the global
+  // accent from Settings > the theme's own colours. This used to just remove
+  // the inline accent when the theme had no tint, which silently wiped the
+  // colourblind palette and the user's accent on every launch and every
+  // theme change (for anyone not on the default theme).
+  if (isColorblindPalette()) {
+    applyColorblindPalette(true);
+  } else if (custom.tint) {
     const shades = deriveShades(custom.tint);
     root.setProperty("--nb-accent", shades.accent);
     root.setProperty("--nb-accent-text", shades.accentText);
     root.setProperty("--nb-surface-alt", shades.surfaceAlt);
   } else {
-    root.removeProperty("--nb-accent");
-    root.removeProperty("--nb-accent-text");
-    root.removeProperty("--nb-surface-alt");
+    applyColorblindPalette(false); // restores the saved global accent, or clears it
   }
 
   if (custom.fontScale) {
@@ -135,6 +142,21 @@ export function setTheme(next: ThemeId) {
   applyToDocument(next);
   listeners.forEach((l) => l());
   setSetting(THEME_SETTING_KEY, next).catch((err) => console.error("failed to save theme", err));
+  // The island and the widgets window each have their own copy of this store.
+  broadcast(THEME_CHANGED_EVENT, next);
+}
+
+/** Applies a theme chosen in the other window, without saving or re-broadcasting it. */
+function applyThemeFromOtherWindow(event: Event) {
+  const next = (event as CustomEvent).detail;
+  if (!isThemeId(next) || next === theme) return;
+  theme = next;
+  applyToDocument(next);
+  listeners.forEach((l) => l());
+}
+
+if (typeof window !== "undefined") {
+  window.addEventListener(THEME_CHANGED_EVENT, applyThemeFromOtherWindow);
 }
 
 export function subscribeTheme(listener: Listener) {

@@ -347,6 +347,14 @@ If you want to do a broader debugging pass — running it for a week and
 filing everything that feels wrong — that would be genuinely one of the
 most valuable contributions right now.
 
+### 🏝️ The island
+
+A pill at the top of your screen with the time and what's playing. Hover it
+and it opens into quick capture (to Brain Dump or To-do), Music controls,
+today's Plans, Clipboard history, an app launcher, a wallpaper switcher and
+quick Settings. `Ctrl+Shift+Space` opens it from anywhere. See
+[docs/WIDGETS.md](docs/WIDGETS.md#the-island).
+
 ### 🧩 Extend without touching core
 
 The **Custom Widget** (add it from the "+ Add widget" overlay) has a switch

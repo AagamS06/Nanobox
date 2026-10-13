@@ -21,6 +21,11 @@ import { getTheme, setTheme } from "./core/themeStore";
 import { THEMES } from "./themes/themes";
 import { useKeyboardNavigation } from "./hooks/useKeyboardNavigation";
 import "./core/keyboardNav.css";
+import { startScheduler } from "./core/scheduler";
+import { startCrossWindowBridge } from "./core/crossWindow";
+import { applySavedHotkeys } from "./core/hotkeySettings";
+import { listen } from "@tauri-apps/api/event";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 
 function cycleTheme(reverse: boolean) {
   const ids = THEMES.map((t) => t.id);
@@ -49,6 +54,21 @@ function App() {
     initContrast().catch((err) => console.error("contrast init failed", err));
     initColorblindPalette();
     initGlobalKeyboardNav();
+    // Alarms, reminders, routines and to-do nudges run from here for as long
+    // as Nanobox is open — not from inside their widgets.
+    const stopScheduler = startScheduler();
+    startCrossWindowBridge();
+    applySavedHotkeys().catch((err) => console.error("hotkey setup failed", err));
+    // The island's "Open full settings" button.
+    const unlisten = listen("nanobox:open-settings", () => {
+      const win = getCurrentWindow();
+      win.show().then(() => win.setFocus()).catch(() => {});
+      setSettingsOpen(true);
+    });
+    return () => {
+      stopScheduler();
+      unlisten.then((fn) => fn()).catch(() => {});
+    };
   }, []);
 
   const toggleAddWidget = useCallback(() => {
