@@ -60,6 +60,22 @@ export function buildAndRegisterCustomBlockDef(row: CustomBlockDefRow): BlockDef
   return def;
 }
 
+let initialLoad: Promise<unknown> | null = null;
+
+/**
+ * Loads custom blocks once per window, for code that runs programs outside
+ * the Block Builder (the Block Widget). Without this, a widget using a custom
+ * block failed with "not registered" after every restart until the Builder
+ * happened to be opened. Retries next time if the load fails.
+ */
+export function ensureCustomBlockDefsLoaded(): Promise<unknown> {
+  initialLoad ??= loadCustomBlockDefs().catch((err) => {
+    initialLoad = null;
+    throw err;
+  });
+  return initialLoad;
+}
+
 /**
  * Loads every stored custom block and registers it. One bad body doesn't stop
  * the rest — it's logged and skipped, so a single broken block can still be

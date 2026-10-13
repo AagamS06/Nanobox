@@ -202,3 +202,18 @@
     transition: none;
   }
 }
+
+/* A just-added widget glows briefly so it's obvious where it appeared. */
+.widget-grid__cell.is-new .widget-frame {
+  animation: widget-added 1.5s ease-out;
+}
+
+@keyframes widget-added {
+  0%,
+  40% {
+    box-shadow: 0 0 0 3px var(--nb-accent);
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
