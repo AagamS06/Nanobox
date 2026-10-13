@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { sendNotification } from "@tauri-apps/plugin-notification";
 import { WidgetFrame } from "../../../components/WidgetFrame";
 import {
   createReminder,
@@ -9,12 +8,17 @@ import {
   Reminder,
   setReminderEnabled,
 } from "../../../storage/reminders";
-import { playTone } from "../Alarm/tones";
+import { SCHEDULER_EVENT } from "../../../core/scheduler";
 import "./GentleReminders.css";
 
 const INTERVAL_PRESETS = [15, 30, 45, 60, 90];
 
-/** Sprout/Finch-style interval nudges — repeats every N minutes, not tied to a clock time (that's the Alarm widget). */
+/**
+ * Sprout/Finch-style interval nudges — repeats every N minutes, not tied to a
+ * clock time (that's the Alarm widget). The nudges themselves are sent by the
+ * app-wide scheduler (src/core/scheduler.ts), so they keep coming when this
+ * widget is closed.
+ */
 export function GentleReminders() {
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [showForm, setShowForm] = useState(false);
@@ -35,21 +39,9 @@ export function GentleReminders() {
   }, []);
 
   useEffect(() => {
-    const id = setInterval(async () => {
-      const now = Date.now();
-      const current = await listReminders();
-      for (const r of current) {
-        if (!r.enabled || !r.last_fired_at) continue;
-        const elapsedMs = now - new Date(r.last_fired_at).getTime();
-        if (elapsedMs >= r.interval_minutes * 60_000) {
-          sendNotification({ title: "Nanobox", body: r.label });
-          playTone("beep");
-          await markReminderFired(r.id, new Date().toISOString());
-        }
-      }
-      refresh();
-    }, 30_000);
-    return () => clearInterval(id);
+    const onFired = () => void refresh().catch(() => {});
+    window.addEventListener(SCHEDULER_EVENT, onFired);
+    return () => window.removeEventListener(SCHEDULER_EVENT, onFired);
   }, []);
 
   async function add() {

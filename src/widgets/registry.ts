@@ -12,7 +12,9 @@ import {
   MoodCheckIn,
   Music,
   Notes,
+  Routines,
   TaskBreakdown,
+  Todo,
   TodayTimeline,
   VisualTimer,
 } from "./built-in";
@@ -33,6 +35,8 @@ export type WidgetId =
   | "gentle-reminders"
   | "calendar"
   | "music"
+  | "todo"
+  | "routines"
   | "custom";
 
 /**
@@ -62,6 +66,8 @@ export const WIDGET_REGISTRY: Record<Exclude<WidgetId, "custom">, ComponentType>
   "gentle-reminders": GentleReminders,
   calendar: Calendar,
   music: Music,
+  todo: Todo,
+  routines: Routines,
 };
 
 export const WIDGET_LABELS: Record<WidgetId, string> = {
@@ -80,6 +86,8 @@ export const WIDGET_LABELS: Record<WidgetId, string> = {
   "gentle-reminders": "Gentle Reminders",
   calendar: "Calendar",
   music: "Music",
+  todo: "To-do",
+  routines: "Routines",
   custom: "Custom Widget",
 };
 
@@ -99,5 +107,7 @@ export const DEFAULT_SIZE: Record<WidgetId, { w: number; h: number }> = {
   "gentle-reminders": { w: 260, h: 280 },
   calendar: { w: 380, h: 380 },
   music: { w: 280, h: 240 },
+  todo: { w: 280, h: 320 },
+  routines: { w: 300, h: 340 },
   custom: { w: 300, h: 300 },
 };

@@ -2,6 +2,7 @@ import { getSetting, setSetting } from "../storage/settings";
 import { DEFAULT_THEME, isThemeId, ThemeId } from "../themes/themes";
 import { deriveShades } from "./colorShades";
 import { BorderStyleId, borderStyleCss } from "./widgetBorderStyles";
+import { broadcast, THEME_CHANGED_EVENT } from "./crossWindow";
 
 /** Minimal external store (same shape as focusModeStore) for the active theme, persisted via app_settings. */
 type Listener = () => void;
@@ -135,6 +136,21 @@ export function setTheme(next: ThemeId) {
   applyToDocument(next);
   listeners.forEach((l) => l());
   setSetting(THEME_SETTING_KEY, next).catch((err) => console.error("failed to save theme", err));
+  // The island and the widgets window each have their own copy of this store.
+  broadcast(THEME_CHANGED_EVENT, next);
+}
+
+/** Applies a theme chosen in the other window, without saving or re-broadcasting it. */
+function applyThemeFromOtherWindow(event: Event) {
+  const next = (event as CustomEvent).detail;
+  if (!isThemeId(next) || next === theme) return;
+  theme = next;
+  applyToDocument(next);
+  listeners.forEach((l) => l());
+}
+
+if (typeof window !== "undefined") {
+  window.addEventListener(THEME_CHANGED_EVENT, applyThemeFromOtherWindow);
 }
 
 export function subscribeTheme(listener: Listener) {

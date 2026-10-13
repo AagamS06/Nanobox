@@ -22,6 +22,8 @@ its own opacity slider and colour override via the widget's settings popover
 | Gentle Reminders | `gentle-reminders` | Non-intrusive reminder prompts. |
 | Calendar | `calendar` | Month/week/day views. Sources: import an `.ics` file, connect Google Calendar (read-only OAuth), or use **+ Event** to quick-add a one-off event stored locally — no external source needed. |
 | Music | `music` | Now-playing widget for Spotify / Apple Music / YouTube Music. |
+| To-do | `todo` | A plain to-do list. Each item can have an optional time today and gets one gentle nudge at that time. Tick items off, clear finished ones. The island's quick-capture box can add to it from anywhere. |
+| Routines | `routines` | "Every weekday at 9:00, open Spotify and my study notes." At a set time, on chosen days or once on a date, a routine opens apps, files, folders or web links and/or shows a message, then posts a notification saying what it did. Use ▶ to run one now. |
 | Custom Widget | `custom` | Build your own widget. A sliding switch at the top picks the kind: **Codeable Widget** runs your own HTML/CSS/JS, sandboxed in an iframe with no access to Nanobox's data, Tauri APIs, or the network; **Block Widget** runs a program you built in the 🧩 Block Builder (Ctrl+Shift+B) and refreshes it on an interval. Each mode keeps its own setup, so switching back and forth loses nothing. See the Block Engine Guide for how blocks work. |
 
 ## App-wide settings
@@ -61,6 +63,39 @@ widget) — skippable, and re-run only happens if you never completed it.
 | `Ctrl+Shift+T` | Cycle to the next theme |
 | `Tab` / `Shift+Tab` | Move focus between controls (visible focus ring) |
 | `Escape` | Close whichever modal/popover is open |
+| `Ctrl+Shift+Space` (`⌘⇧Space` on Mac) | **System-wide:** open the island with the quick-capture box focused |
+| `Ctrl+Shift+\` (`⌘⇧\` on Mac) | **System-wide:** bring the widgets in front of your windows; press again to send them back |
+
+The two system-wide shortcuts work from any app. If they clash with
+something else, turn them off in the island's Settings tab.
+
+## The island
+
+A small pill at the top-centre of the screen showing the time and what's
+playing (or what's next today). Hover over it, scroll down on it, or press
+`Ctrl+Shift+Space` and it opens into a panel:
+
+- **Quick capture** — type a thought and press Enter; a switch picks Brain
+  Dump or To-do.
+- **Music** — what's playing, with play/pause/skip when the source is
+  "Now Playing (this device)".
+- **Plans** — today in one list: alarms, routines, timed to-dos, Today
+  blocks and calendar events, plus untimed to-dos and upcoming countdowns.
+- **Clipboard** — recent copied text; click to copy again. Kept in memory
+  only (gone when Nanobox quits), anything copied from a password manager is
+  never recorded, and it can be paused.
+- **Apps** — your Shortcuts, one click away.
+- **Wallpapers** — pick a folder of images and set your desktop wallpaper.
+- **Settings** — theme, show/hide widgets, clipboard history and hotkeys
+  on/off, hide the island (bring it back from the tray icon menu).
+
+## Scheduling
+
+Alarms, gentle reminders, routines and to-do nudges are all fired by one
+app-wide scheduler (`src/core/scheduler.ts`) that runs for as long as
+Nanobox is open — they keep working even if you close their widgets. It
+uses your computer's local time, and if the computer was asleep at the
+exact minute it still fires up to five minutes late rather than not at all.
 
 Within the Focus Mode time picker specifically: arrow keys nudge the value
 by one minute, `Enter` switches to typing a number directly, `Escape`

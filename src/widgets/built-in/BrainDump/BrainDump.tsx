@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { WidgetFrame } from "../../../components/WidgetFrame";
+import { BRAIN_DUMP_CHANGED_EVENT } from "../../../core/crossWindow";
 import { BrainDumpEntry, createBrainDumpEntry, deleteBrainDumpEntry, listBrainDumpEntries } from "../../../storage/brainDump";
 import "./BrainDump.css";
 
@@ -12,6 +13,13 @@ export function BrainDump() {
   async function refresh() {
     setEntries(await listBrainDumpEntries());
   }
+
+  useEffect(() => {
+    // The island's quick-capture box adds entries from the other window.
+    const onChanged = () => void refresh().catch(() => {});
+    window.addEventListener(BRAIN_DUMP_CHANGED_EVENT, onChanged);
+    return () => window.removeEventListener(BRAIN_DUMP_CHANGED_EVENT, onChanged);
+  }, []);
 
   useEffect(() => {
     refresh().catch((err) => {

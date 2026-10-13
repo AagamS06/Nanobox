@@ -1,12 +1,17 @@
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{TrayIconBuilder, TrayIconEvent};
-use tauri::{Manager, WindowEvent};
+use std::sync::Arc;
+use tauri::{Emitter, Manager, WindowEvent};
 use tauri_plugin_sql::{Migration, MigrationKind};
 
+mod clipboard;
+mod hotkeys;
 mod icons;
 mod keychain;
+mod launcher;
 mod oauth;
 mod system_media;
+mod wallpaper;
 
 fn migrations() -> Vec<Migration> {
     vec![
@@ -271,6 +276,37 @@ fn migrations() -> Vec<Migration> {
             ",
             kind: MigrationKind::Up,
         },
+        // Routines (scheduled "at this time, open these things / show this
+        // message") and the To-do widget. Both are checked by the app-wide
+        // scheduler in src/core/scheduler.ts.
+        Migration {
+            version: 12,
+            description: "routines_and_todos",
+            sql: "
+                CREATE TABLE IF NOT EXISTS routines (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
+                    time TEXT NOT NULL,
+                    days TEXT NOT NULL DEFAULT '',
+                    run_on_date TEXT,
+                    actions_json TEXT NOT NULL DEFAULT '[]',
+                    enabled INTEGER NOT NULL DEFAULT 1,
+                    last_run_on TEXT,
+                    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+                );
+
+                CREATE TABLE IF NOT EXISTS todos (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    text TEXT NOT NULL,
+                    due_time TEXT,
+                    done INTEGER NOT NULL DEFAULT 0,
+                    done_at TEXT,
+                    notified_on TEXT,
+                    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+                );
+            ",
+            kind: MigrationKind::Up,
+        },
     ]
 }
 
@@ -330,6 +366,15 @@ fn save_custom_widget_file(app: tauri::AppHandle, filename: String, contents: St
     Ok(path.to_string_lossy().to_string())
 }
 
+fn toggle_island(app: &tauri::AppHandle) {
+    if let Some(window) = app.get_webview_window("island") {
+        let visible = !window.is_visible().unwrap_or(false);
+        // The island window positions itself and persists the choice; it
+        // listens for this rather than being shown/hidden behind its back.
+        let _ = app.emit_to("island", "island:set-visible", visible);
+    }
+}
+
 fn toggle_overlay(app: &tauri::AppHandle) {
     if let Some(window) = app.get_webview_window("overlay") {
         let visible = window.is_visible().unwrap_or(false);
@@ -354,6 +399,9 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
+        .plugin(hotkeys::plugin())
+        .manage(Arc::new(clipboard::ClipboardHistory::default()))
+        .manage(wallpaper::ThumbnailCache::default())
         .plugin(
             tauri_plugin_sql::Builder::default()
                 .add_migrations("sqlite:nanobox.db", migrations())
@@ -371,19 +419,38 @@ pub fn run() {
             icons::extract_file_icon,
             icons::read_image_as_data_url,
             system_media::get_system_now_playing,
+            system_media::system_media_control,
+            launcher::open_target,
+            hotkeys::set_hotkeys_enabled,
+            hotkeys::peek_widgets,
+            clipboard::clipboard_history,
+            clipboard::clipboard_copy,
+            clipboard::clipboard_remove,
+            clipboard::clipboard_clear,
+            clipboard::clipboard_set_paused,
+            clipboard::clipboard_is_paused,
+            wallpaper::wallpaper_list,
+            wallpaper::wallpaper_thumbnail,
+            wallpaper::wallpaper_set,
+            wallpaper::wallpaper_current,
         ])
         .setup(|app| {
+            clipboard::start_watcher(app.handle().clone());
+
             let show_hide = MenuItem::with_id(app, "show_hide", "Show / Hide Nanobox", true, None::<&str>)?;
+            let island = MenuItem::with_id(app, "island", "Show / Hide island", true, None::<&str>)?;
             let quit = PredefinedMenuItem::quit(app, Some("Quit Nanobox"))?;
-            let menu = Menu::with_items(app, &[&show_hide, &quit])?;
+            let menu = Menu::with_items(app, &[&show_hide, &island, &quit])?;
 
             TrayIconBuilder::new()
                 .icon(app.default_window_icon().unwrap().clone())
                 .menu(&menu)
                 .tooltip("Nanobox")
                 .on_menu_event(|app, event| {
-                    if event.id.as_ref() == "show_hide" {
-                        toggle_overlay(app);
+                    match event.id.as_ref() {
+                        "show_hide" => toggle_overlay(app),
+                        "island" => toggle_island(app),
+                        _ => {}
                     }
                 })
                 .on_tray_icon_event(|tray, event| {
@@ -396,9 +463,10 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(|window, event| {
-            // Closing the overlay just hides it — the tray icon is the real quit path.
+            // Closing the overlay or island just hides it — the tray icon is
+            // the real quit path.
             if let WindowEvent::CloseRequested { api, .. } = event {
-                if window.label() == "overlay" {
+                if window.label() == "overlay" || window.label() == "island" {
                     let _ = window.hide();
                     api.prevent_close();
                 }

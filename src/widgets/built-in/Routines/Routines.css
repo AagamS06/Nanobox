@@ -1,0 +1,232 @@
+.routines-widget {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  height: 100%;
+  min-height: 0;
+}
+
+.routines-widget__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.routines-widget__item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 4px;
+  border-radius: 8px;
+}
+
+.routines-widget__item:hover {
+  background: rgba(127, 127, 127, 0.08);
+}
+
+.routines-widget__item.is-off .routines-widget__info {
+  opacity: 0.55;
+}
+
+.routines-widget__item input[type="checkbox"] {
+  margin-top: 3px;
+  accent-color: var(--nb-accent);
+}
+
+.routines-widget__info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.routines-widget__name {
+  font-size: 0.86em;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.routines-widget__meta {
+  font-size: 0.72em;
+  color: var(--nb-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.routines-widget__icon-btn {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--nb-text-muted);
+  cursor: pointer;
+  font-size: 0.8em;
+}
+
+.routines-widget__icon-btn:hover {
+  background: rgba(127, 127, 127, 0.14);
+  color: var(--nb-text);
+}
+
+.routines-widget__empty,
+.routines-widget__hint {
+  color: var(--nb-text-muted);
+  font-size: 0.8em;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.routines-widget__form {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.routines-widget__row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.routines-widget__row .mode-switch {
+  flex: 1;
+}
+
+.routines-widget__input {
+  min-width: 0;
+  flex: 1;
+  background: var(--nb-surface);
+  border: var(--nb-border-style);
+  border-radius: 6px;
+  color: var(--nb-text);
+  font-family: inherit;
+  font-size: 0.82em;
+  padding: 6px 8px;
+}
+
+.routines-widget__input--time {
+  flex: none;
+  width: 96px;
+}
+
+.routines-widget__label {
+  font-size: 0.7em;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--nb-text-muted);
+}
+
+.routines-widget__days {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.routines-widget__day {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: var(--nb-border-style);
+  background: none;
+  color: var(--nb-text);
+  font-size: 0.72em;
+  cursor: pointer;
+}
+
+.routines-widget__day.is-selected {
+  background: var(--nb-accent);
+  color: var(--nb-accent-text);
+  border-color: transparent;
+}
+
+.routines-widget__targets {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.routines-widget__targets li {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  padding: 2px 4px 2px 8px;
+  border-radius: 999px;
+  background: rgba(127, 127, 127, 0.14);
+  font-size: 0.74em;
+}
+
+.routines-widget__targets span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.routines-widget__targets button {
+  border: none;
+  background: none;
+  color: var(--nb-text-muted);
+  cursor: pointer;
+}
+
+.routines-widget__chip,
+.routines-widget__actions button,
+.routines-widget__add {
+  flex: none;
+  border: none;
+  border-radius: 6px;
+  background: rgba(127, 127, 127, 0.14);
+  color: var(--nb-text);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.8em;
+  padding: 6px 10px;
+}
+
+.routines-widget__chip:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.routines-widget__add {
+  align-self: flex-start;
+  background: none;
+  border: 1px dashed currentColor;
+  color: var(--nb-text-muted);
+}
+
+.routines-widget__error {
+  margin: 0;
+  font-size: 0.76em;
+  color: var(--nb-accent);
+}
+
+.routines-widget__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.routines-widget__btn--primary {
+  background: var(--nb-accent) !important;
+  color: var(--nb-accent-text) !important;
+  font-weight: 600;
+}

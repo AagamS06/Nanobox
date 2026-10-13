@@ -1,5 +1,5 @@
 import { sendNotification as osNotify } from "@tauri-apps/plugin-notification";
-import { openPath } from "@tauri-apps/plugin-opener";
+import { openTarget } from "../../core/launcher";
 import type { ExecutionBridge } from "./types";
 import { listNotes } from "../../storage/notes";
 import { createAlarm } from "../../storage/alarms";
@@ -57,7 +57,7 @@ export const liveBridge: ExecutionBridge = {
   },
 
   async openApp(appPath) {
-    await openPath(appPath);
+    await openTarget(appPath);
   },
 
   async setAlarm(time, label) {
