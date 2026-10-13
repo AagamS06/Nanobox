@@ -349,12 +349,16 @@ most valuable contributions right now.
 
 ### 🧩 Extend without touching core
 
-The **Custom Widget** type (add it from the "+ Add widget" overlay) lets you
-write your own HTML/CSS/JS and drop it straight onto the desktop — sandboxed
-in an iframe with no access to your files, Nanobox's data, or Tauri APIs.
-The **Block Builder** (Ctrl+Shift+B) is the full visual alternative — drag,
-wire, and run logic blocks without writing code, then pin the output as a
-live widget. Each program saves as a `.nanowidget` file you can share.
+The **Custom Widget** (add it from the "+ Add widget" overlay) has a switch
+at the top with two modes:
+
+- **Codeable Widget** — write your own HTML/CSS/JS and drop it straight onto
+  the desktop, sandboxed in an iframe with no access to your files,
+  Nanobox's data, or Tauri APIs.
+- **Block Widget** — the no-code alternative. Build a program in the
+  **Block Builder** (Ctrl+Shift+B) by dragging and wiring logic blocks, then
+  pick it here to run it as a live widget. Each program saves as a
+  `.nanowidget` file you can share.
 
 ## Security
 

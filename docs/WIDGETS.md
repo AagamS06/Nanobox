@@ -22,7 +22,7 @@ its own opacity slider and colour override via the widget's settings popover
 | Gentle Reminders | `gentle-reminders` | Non-intrusive reminder prompts. |
 | Calendar | `calendar` | Month/week/day views. Sources: import an `.ics` file, connect Google Calendar (read-only OAuth), or use **+ Event** to quick-add a one-off event stored locally — no external source needed. |
 | Music | `music` | Now-playing widget for Spotify / Apple Music / YouTube Music. |
-| Custom Widget | `custom` | Write your own HTML/CSS/JS, sandboxed in an iframe with no access to Nanobox's data or Tauri APIs. See the Block Engine Guide for the higher-level visual alternative. |
+| Custom Widget | `custom` | Build your own widget. A sliding switch at the top picks the kind: **Codeable Widget** runs your own HTML/CSS/JS, sandboxed in an iframe with no access to Nanobox's data, Tauri APIs, or the network; **Block Widget** runs a program you built in the 🧩 Block Builder (Ctrl+Shift+B) and refreshes it on an interval. Each mode keeps its own setup, so switching back and forth loses nothing. See the Block Engine Guide for how blocks work. |
 
 ## App-wide settings
 

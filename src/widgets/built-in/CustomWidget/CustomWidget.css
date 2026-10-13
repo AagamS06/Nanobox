@@ -109,3 +109,18 @@
   border-color: var(--nb-accent);
   color: var(--nb-accent);
 }
+
+/* Combined Custom Widget: mode switch on top, the chosen mode's body below. */
+.custom-widget-host {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+}
+
+.custom-widget-host__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}

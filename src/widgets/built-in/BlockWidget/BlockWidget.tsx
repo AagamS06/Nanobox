@@ -1,21 +1,15 @@
-import { useEffect, useMemo, useState } from "react";
-import { WidgetFrame } from "../../../components/WidgetFrame";
-import { updateWidgetSettings, WidgetInstance } from "../../../storage/widgetInstances";
+import { useEffect, useState } from "react";
 import { getBlockProgram, listBlockPrograms, BlockProgramRow } from "../../../storage/blockPrograms";
 import { evaluateProgram } from "../../../integrations/blockEngine/evaluator";
 import { initBlockLibrary } from "../../../integrations/blockEngine/blockLibrary";
 import { liveBridge } from "../../../integrations/blockEngine/bridge";
 import type { BlockProgram } from "../../../integrations/blockEngine/types";
+import { DEFAULT_BLOCK_INTERVAL_MS, type BlockWidgetConfig } from "../CustomWidget/settings";
 import "./BlockWidget.css";
 
 // Registers all built-in block defs once. Safe to call from more than one
 // entry point (BlockBuilder does the same) — it just re-populates a Map.
 initBlockLibrary();
-
-interface BlockWidgetConfig {
-  programId: number | null;
-  intervalMs: number;
-}
 
 const INTERVAL_PRESETS: Array<{ label: string; ms: number }> = [
   { label: "5s", ms: 5_000 },
@@ -25,20 +19,7 @@ const INTERVAL_PRESETS: Array<{ label: string; ms: number }> = [
   { label: "5m", ms: 300_000 },
 ];
 
-const DEFAULT_CONFIG: BlockWidgetConfig = { programId: null, intervalMs: 30_000 };
-
-function parseConfig(raw: string | null): BlockWidgetConfig {
-  if (!raw) return DEFAULT_CONFIG;
-  try {
-    const parsed = JSON.parse(raw);
-    return {
-      programId: typeof parsed.programId === "number" ? parsed.programId : null,
-      intervalMs: typeof parsed.intervalMs === "number" ? parsed.intervalMs : DEFAULT_CONFIG.intervalMs,
-    };
-  } catch {
-    return DEFAULT_CONFIG;
-  }
-}
+const DEFAULT_CONFIG: BlockWidgetConfig = { programId: null, intervalMs: DEFAULT_BLOCK_INTERVAL_MS };
 
 function renderValue(value: unknown): string {
   if (value === undefined || value === null || value === "") return "—";
@@ -47,18 +28,23 @@ function renderValue(value: unknown): string {
 }
 
 interface BlockWidgetProps {
-  instance: WidgetInstance;
+  /** Saved config, or null if this widget has never been saved in Block mode. */
+  config: BlockWidgetConfig | null;
+  onSave: (config: BlockWidgetConfig) => Promise<void>;
+  /** Reports the running program's name so the Custom Widget can use it as its title. */
+  onProgramName?: (name: string | null) => void;
 }
 
 /**
  * Runs a saved block-engine program (built in the 🧩 Block Builder) as a
  * live desktop widget: re-evaluates it against `liveBridge` on an interval
  * and shows the root node's value. Closes the loop from "build a program"
- * to "use it" — see ROADMAP.md Milestone 7.
+ * to "use it" — see ROADMAP.md Milestone 7. This is the Block mode of the
+ * Custom Widget and renders inside its frame — see CustomWidget.tsx.
  */
-export function BlockWidget({ instance }: BlockWidgetProps) {
-  const config = useMemo(() => parseConfig(instance.settings), [instance.settings]);
-  const [editing, setEditing] = useState(instance.settings === null);
+export function BlockWidget({ config: saved, onSave, onProgramName }: BlockWidgetProps) {
+  const config = saved ?? DEFAULT_CONFIG;
+  const [editing, setEditing] = useState(saved === null);
   const [programs, setPrograms] = useState<BlockProgramRow[]>([]);
   const [draftProgramId, setDraftProgramId] = useState<number | null>(config.programId);
   const [draftIntervalMs, setDraftIntervalMs] = useState(config.intervalMs);
@@ -68,6 +54,10 @@ export function BlockWidget({ instance }: BlockWidgetProps) {
   );
 
   const [dbError, setDbError] = useState(false);
+
+  useEffect(() => {
+    onProgramName?.(programName);
+  }, [programName, onProgramName]);
 
   useEffect(() => {
     listBlockPrograms()
@@ -131,68 +121,65 @@ export function BlockWidget({ instance }: BlockWidgetProps) {
 
   async function save() {
     if (draftProgramId === null) return;
-    const json = JSON.stringify({ programId: draftProgramId, intervalMs: draftIntervalMs });
-    await updateWidgetSettings(instance.id, json);
+    await onSave({ programId: draftProgramId, intervalMs: draftIntervalMs });
     setEditing(false);
   }
 
   return (
-    <WidgetFrame title={programName ?? "Block widget"}>
-      <div className="block-widget">
-        {dbError && <p className="block-widget__hint">⚠ Failed to load programs. Restart the app to retry.</p>}
-        {editing ? (
-          <div className="block-widget__editor" data-no-drag>
-            <label>
-              Program
-              <select
-                value={draftProgramId ?? ""}
-                onChange={(e) => setDraftProgramId(e.target.value ? Number(e.target.value) : null)}
-              >
-                <option value="">Choose a saved program…</option>
-                {programs.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Refresh every
-              <select value={draftIntervalMs} onChange={(e) => setDraftIntervalMs(Number(e.target.value))}>
-                {INTERVAL_PRESETS.map((p) => (
-                  <option key={p.ms} value={p.ms}>
-                    {p.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            {programs.length === 0 && (
-              <p className="block-widget__hint">
-                No saved programs yet — build one in the 🧩 Block Builder first.
-              </p>
-            )}
-            <div className="block-widget__actions">
-              <button onClick={() => setEditing(false)}>Cancel</button>
-              <button className="block-widget__save" onClick={save} disabled={draftProgramId === null}>
-                Save
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="block-widget__view" data-no-drag>
-            {config.programId === null ? (
-              <p className="block-widget__empty">No program selected.</p>
-            ) : result?.kind === "error" ? (
-              <p className="block-widget__error">{result.message}</p>
-            ) : (
-              <p className="block-widget__value">{renderValue(result?.value)}</p>
-            )}
-            <button className="block-widget__edit" onClick={startEditing}>
-              Edit
+    <div className="block-widget">
+      {dbError && <p className="block-widget__hint">⚠ Failed to load programs. Restart the app to retry.</p>}
+      {editing ? (
+        <div className="block-widget__editor" data-no-drag>
+          <label>
+            Program
+            <select
+              value={draftProgramId ?? ""}
+              onChange={(e) => setDraftProgramId(e.target.value ? Number(e.target.value) : null)}
+            >
+              <option value="">Choose a saved program…</option>
+              {programs.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Refresh every
+            <select value={draftIntervalMs} onChange={(e) => setDraftIntervalMs(Number(e.target.value))}>
+              {INTERVAL_PRESETS.map((p) => (
+                <option key={p.ms} value={p.ms}>
+                  {p.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          {programs.length === 0 && (
+            <p className="block-widget__hint">
+              No saved programs yet — build one in the 🧩 Block Builder first.
+            </p>
+          )}
+          <div className="block-widget__actions">
+            <button onClick={() => setEditing(false)}>Cancel</button>
+            <button className="block-widget__save" onClick={save} disabled={draftProgramId === null}>
+              Save
             </button>
           </div>
-        )}
-      </div>
-    </WidgetFrame>
+        </div>
+      ) : (
+        <div className="block-widget__view" data-no-drag>
+          {config.programId === null ? (
+            <p className="block-widget__empty">No program selected.</p>
+          ) : result?.kind === "error" ? (
+            <p className="block-widget__error">{result.message}</p>
+          ) : (
+            <p className="block-widget__value">{renderValue(result?.value)}</p>
+          )}
+          <button className="block-widget__edit" onClick={startEditing}>
+            Edit
+          </button>
+        </div>
+      )}
+    </div>
   );
 }

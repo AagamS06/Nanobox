@@ -2,16 +2,11 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { BlockWidget } from "../../src/widgets/built-in/BlockWidget/BlockWidget";
 import { getBlockProgram, listBlockPrograms, type BlockProgramRow } from "../../src/storage/blockPrograms";
-import { updateWidgetSettings, type WidgetInstance } from "../../src/storage/widgetInstances";
 import type { BlockProgram } from "../../src/integrations/blockEngine/types";
 
 vi.mock("../../src/storage/blockPrograms", () => ({
   listBlockPrograms: vi.fn(),
   getBlockProgram: vi.fn(),
-}));
-
-vi.mock("../../src/storage/widgetInstances", () => ({
-  updateWidgetSettings: vi.fn().mockResolvedValue(undefined),
 }));
 
 // Real bridge.ts imports @tauri-apps/plugin-notification and plugin-opener,
@@ -40,20 +35,7 @@ const PROGRAM_ROW: BlockProgramRow = {
   updated_at: "2026-08-19T00:00:00Z",
 };
 
-function makeInstance(overrides: Partial<WidgetInstance> = {}): WidgetInstance {
-  return {
-    id: 1,
-    widget_type: "block-widget",
-    x: 0,
-    y: 0,
-    w: 260,
-    h: 220,
-    opacity: 1,
-    settings: null,
-    style_settings: null,
-    ...overrides,
-  };
-}
+const onSave = vi.fn().mockResolvedValue(undefined);
 
 describe("BlockWidget", () => {
   afterEach(() => {
@@ -63,7 +45,7 @@ describe("BlockWidget", () => {
   it("prompts for a program to run when the instance has no saved config", async () => {
     vi.mocked(listBlockPrograms).mockResolvedValue([PROGRAM_ROW]);
 
-    render(<BlockWidget instance={makeInstance({ settings: null })} />);
+    render(<BlockWidget config={null} onSave={onSave} />);
 
     await act(async () => {
       await Promise.resolve();
@@ -78,27 +60,21 @@ describe("BlockWidget", () => {
     vi.mocked(listBlockPrograms).mockResolvedValue([PROGRAM_ROW]);
     vi.mocked(getBlockProgram).mockResolvedValue(PROGRAM_ROW);
 
-    render(
-      <BlockWidget
-        instance={makeInstance({ settings: JSON.stringify({ programId: 1, intervalMs: 30_000 }) })}
-      />,
-    );
+    const onProgramName = vi.fn();
+    render(<BlockWidget config={{ programId: 1, intervalMs: 30_000 }} onSave={onSave} onProgramName={onProgramName} />);
 
     await waitFor(() => {
       expect(screen.getByText(/^\d{4}-\d{2}-\d{2}T/)).toBeInTheDocument();
     });
-    expect(screen.getAllByText("Greeting").length).toBeGreaterThan(0);
+    // The program name becomes the Custom Widget's title.
+    expect(onProgramName).toHaveBeenLastCalledWith("Greeting");
   });
 
   it("shows an error when the configured program was deleted", async () => {
     vi.mocked(listBlockPrograms).mockResolvedValue([]);
     vi.mocked(getBlockProgram).mockResolvedValue(null);
 
-    render(
-      <BlockWidget
-        instance={makeInstance({ settings: JSON.stringify({ programId: 99, intervalMs: 30_000 }) })}
-      />,
-    );
+    render(<BlockWidget config={{ programId: 99, intervalMs: 30_000 }} onSave={onSave} />);
 
     await waitFor(() => {
       expect(screen.getByText("This program was deleted.")).toBeInTheDocument();
@@ -109,7 +85,7 @@ describe("BlockWidget", () => {
     vi.mocked(listBlockPrograms).mockResolvedValue([PROGRAM_ROW]);
     vi.mocked(getBlockProgram).mockResolvedValue(PROGRAM_ROW);
 
-    render(<BlockWidget instance={makeInstance({ settings: null })} />);
+    render(<BlockWidget config={null} onSave={onSave} />);
 
     await act(async () => {
       await Promise.resolve();
@@ -119,7 +95,7 @@ describe("BlockWidget", () => {
     fireEvent.click(screen.getByText("Save"));
 
     await waitFor(() => {
-      expect(updateWidgetSettings).toHaveBeenCalledWith(1, JSON.stringify({ programId: 1, intervalMs: 30_000 }));
+      expect(onSave).toHaveBeenCalledWith({ programId: 1, intervalMs: 30_000 });
     });
   });
 });
