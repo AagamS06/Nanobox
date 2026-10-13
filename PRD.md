@@ -49,7 +49,7 @@ desktop hub without running a heavyweight always-on-top app.
 | Alarms | Recurring and one-off alarms with notification |
 | App Shortcuts | Drag-and-drop application launcher icons |
 | Pomodoro / Focus | Configurable focus/break timer |
-| Block Widget | Runs a saved Block Builder program as a live widget |
+| Custom Widget | One widget with a Codeable / Block switch: sandboxed HTML/CSS/JS, or a saved Block Builder program run live |
 
 ### Theme Engine
 17 built-in visual themes via CSS custom properties. User can switch theme and enable
@@ -96,7 +96,7 @@ can be authored in the app (JavaScript body, sandboxed via `new Function`).
 - App starts in under 2 seconds on a modern Windows machine
 - A first-time user can add a widget, resize it, and change the theme without reading docs
 - Spotify and Google Calendar auth flows complete end-to-end without errors
-- Block Builder programs run correctly inside a Block Widget on the canvas
+- Block Builder programs run correctly inside a Custom Widget (Block mode) on the canvas
 - CI builds produce installable artefacts for both Windows (NSIS) and macOS (DMG)
 
 ---

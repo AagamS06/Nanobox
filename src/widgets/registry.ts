@@ -33,18 +33,20 @@ export type WidgetId =
   | "gentle-reminders"
   | "calendar"
   | "music"
-  | "custom"
-  | "block-widget";
+  | "custom";
 
 /**
- * "custom" and "block-widget" are deliberately excluded here — unlike every
- * other widget, each needs its own `WidgetInstance` (for the per-instance
- * code, or the chosen block program id, in `settings`), so `WidgetGrid`
- * renders them directly instead of through this no-props map. They're still
- * normal entries in `WIDGET_LABELS` / `DEFAULT_SIZE` so they show up in the
- * add-widget menu like everything else.
+ * "custom" is deliberately excluded here — unlike every other widget it needs
+ * its own `WidgetInstance` (its Codeable code or Block program choice lives
+ * in `settings`), so `WidgetGrid` renders it directly instead of through this
+ * no-props map. It's still a normal entry in `WIDGET_LABELS` / `DEFAULT_SIZE`
+ * so it shows up in the add-widget menu like everything else.
+ *
+ * The Custom Widget covers both Codeable and Block widgets (picked with a
+ * switch inside the widget). The old separate "block-widget" type was folded
+ * into it by migration 11 — see src-tauri/src/lib.rs.
  */
-export const WIDGET_REGISTRY: Record<Exclude<WidgetId, "custom" | "block-widget">, ComponentType> = {
+export const WIDGET_REGISTRY: Record<Exclude<WidgetId, "custom">, ComponentType> = {
   clock: Clock,
   notes: Notes,
   alarm: Alarm,
@@ -78,8 +80,7 @@ export const WIDGET_LABELS: Record<WidgetId, string> = {
   "gentle-reminders": "Gentle Reminders",
   calendar: "Calendar",
   music: "Music",
-  custom: "Custom Widget (developer)",
-  "block-widget": "Block Widget",
+  custom: "Custom Widget",
 };
 
 export const DEFAULT_SIZE: Record<WidgetId, { w: number; h: number }> = {
@@ -98,6 +99,5 @@ export const DEFAULT_SIZE: Record<WidgetId, { w: number; h: number }> = {
   "gentle-reminders": { w: 260, h: 280 },
   calendar: { w: 380, h: 380 },
   music: { w: 280, h: 240 },
-  custom: { w: 300, h: 280 },
-  "block-widget": { w: 260, h: 220 },
+  custom: { w: 300, h: 300 },
 };

@@ -242,6 +242,35 @@ fn migrations() -> Vec<Migration> {
             ",
             kind: MigrationKind::Up,
         },
+        // The separate Custom Widget (code) and Block Widget types became one
+        // Custom Widget with a Codeable/Block mode switch. Settings move into
+        // {"mode": ..., "code": ..., "block": ...} — see
+        // src/widgets/built-in/CustomWidget/settings.ts. Rows with missing or
+        // unparseable settings get just the mode, which opens that mode's
+        // editor exactly as an unconfigured widget did before.
+        Migration {
+            version: 11,
+            description: "combine_custom_and_block_widgets",
+            sql: "
+                UPDATE widget_instances
+                SET widget_type = 'custom',
+                    settings = CASE
+                        WHEN settings IS NOT NULL AND json_valid(settings)
+                            THEN json_object('mode', 'block', 'code', NULL, 'block', json(settings))
+                        ELSE json_object('mode', 'block', 'code', NULL, 'block', NULL)
+                    END
+                WHERE widget_type = 'block-widget';
+
+                UPDATE widget_instances
+                SET settings = json_object('mode', 'code', 'code', json(settings), 'block', NULL)
+                WHERE widget_type = 'custom'
+                    AND settings IS NOT NULL
+                    AND json_valid(settings)
+                    AND json_type(settings) = 'object'
+                    AND json_extract(settings, '$.mode') IS NULL;
+            ",
+            kind: MigrationKind::Up,
+        },
     ]
 }
 
