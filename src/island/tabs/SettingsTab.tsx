@@ -5,11 +5,16 @@ import { Window } from "@tauri-apps/api/window";
 import { THEMES } from "../../themes/themes";
 import { getTheme, setTheme, subscribeTheme } from "../../core/themeStore";
 import { getHotkeysEnabled, hotkeyLabel, HOTKEYS, setHotkeysEnabled } from "../../core/hotkeySettings";
-import { setIslandVisible } from "../islandWindow";
+import { getPanelSize, PANEL_SIZE_OPTIONS, PanelSizeId, setIslandVisible, setPanelSize } from "../islandWindow";
+import { ModeSwitch } from "../../components/ModeSwitch";
+import { APP_MODE_HINTS, APP_MODE_OPTIONS, AppMode, setAppMode, useAppMode } from "../../core/appMode";
 import type { ThemeId } from "../../themes/themes";
 
 /** Quick settings — the things worth one flick away. Everything else lives in the full Settings panel. */
 export function SettingsTab() {
+  const mode = useAppMode();
+  const [modeError, setModeError] = useState<string | null>(null);
+  const [panelSize, setPanelSizeState] = useState<PanelSizeId>("roomy");
   const [theme, setThemeState] = useState<ThemeId>(getTheme());
   const [hotkeys, setHotkeys] = useState(true);
   const [hotkeyProblem, setHotkeyProblem] = useState<string | null>(null);
@@ -19,6 +24,7 @@ export function SettingsTab() {
   useEffect(() => {
     const unsubscribe = subscribeTheme(() => setThemeState(getTheme()));
     getHotkeysEnabled().then(setHotkeys).catch(() => {});
+    getPanelSize().then(setPanelSizeState).catch(() => {});
     invoke<boolean>("clipboard_is_paused")
       .then((p) => setClipboardOn(!p))
       .catch(() => {});
@@ -28,6 +34,20 @@ export function SettingsTab() {
       .catch(() => {});
     return unsubscribe;
   }, []);
+
+  async function changeMode(next: AppMode) {
+    setModeError(null);
+    try {
+      await setAppMode(next);
+    } catch (err) {
+      setModeError(`Couldn't switch: ${String(err)}`);
+    }
+  }
+
+  async function changePanelSize(next: PanelSizeId) {
+    setPanelSizeState(next);
+    await setPanelSize(next);
+  }
 
   async function toggleHotkeys() {
     const next = !hotkeys;
@@ -52,6 +72,22 @@ export function SettingsTab() {
 
   return (
     <div className="island-settings">
+      <div className="island-setting island-setting--stacked">
+        <span>
+          Nanobox mode
+          {mode && <span className="island-muted island-setting__hint">{APP_MODE_HINTS[mode]}</span>}
+        </span>
+        {mode && <ModeSwitch label="Nanobox mode" options={APP_MODE_OPTIONS} value={mode} onChange={changeMode} />}
+      </div>
+      {modeError && <p className="island-error">{modeError}</p>}
+
+      {mode === "island" && (
+        <div className="island-setting">
+          <span>Island size</span>
+          <ModeSwitch label="Island size" options={PANEL_SIZE_OPTIONS} value={panelSize} onChange={changePanelSize} />
+        </div>
+      )}
+
       <label className="island-setting">
         <span>Theme</span>
         <select value={theme} onChange={(e) => setTheme(e.target.value as ThemeId)}>
@@ -63,7 +99,7 @@ export function SettingsTab() {
         </select>
       </label>
 
-      <Toggle label="Show widgets" checked={widgetsVisible} onChange={toggleWidgets} />
+      {mode === "desktop" && <Toggle label="Show widgets" checked={widgetsVisible} onChange={toggleWidgets} />}
       <Toggle label="Clipboard history" checked={clipboardOn} onChange={toggleClipboard} />
       <Toggle
         label="Keyboard shortcuts"
@@ -74,11 +110,16 @@ export function SettingsTab() {
       {hotkeyProblem && <p className="island-error">{hotkeyProblem}</p>}
 
       <div className="island-settings__buttons">
-        <button className="island-btn" onClick={() => invoke("peek_widgets")}>
-          Bring widgets to front
-        </button>
+        {mode === "desktop" && (
+          <button className="island-btn" onClick={() => invoke("peek_widgets")}>
+            Bring widgets to front
+          </button>
+        )}
         <button className="island-btn" onClick={() => emit("nanobox:open-settings")}>
           All settings…
+        </button>
+        <button className="island-btn" onClick={() => emit("nanobox:open-block-builder")}>
+          Block builder…
         </button>
         <button className="island-btn" onClick={() => setIslandVisible(false)}>
           Hide island

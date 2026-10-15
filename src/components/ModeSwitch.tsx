@@ -9,13 +9,14 @@ export interface ModeSwitchOption<T extends string> {
 interface ModeSwitchProps<T extends string> {
   /** Accessible name for the group, e.g. "Widget type". */
   label: string;
-  options: readonly [ModeSwitchOption<T>, ModeSwitchOption<T>];
+  /** Two or more options. */
+  options: readonly [ModeSwitchOption<T>, ModeSwitchOption<T>, ...ModeSwitchOption<T>[]];
   value: T;
   onChange: (value: T) => void;
 }
 
 /**
- * Two-option segmented switch with a thumb that slides to the selected side.
+ * Segmented switch (two or more options) with a thumb that slides to the selected side.
  *
  * Built on real radio inputs (visually hidden, still focusable), so it gets
  * native keyboard behaviour for free: Tab focuses the group, arrow keys move
@@ -28,7 +29,13 @@ export function ModeSwitch<T extends string>({ label, options, value, onChange }
   const selectedIndex = Math.max(0, options.findIndex((o) => o.value === value));
 
   return (
-    <div className="mode-switch" role="radiogroup" aria-label={label} data-no-drag>
+    <div
+      className="mode-switch"
+      role="radiogroup"
+      aria-label={label}
+      data-no-drag
+      style={{ "--mode-switch-count": options.length } as React.CSSProperties}
+    >
       <span
         className="mode-switch__thumb"
         aria-hidden="true"

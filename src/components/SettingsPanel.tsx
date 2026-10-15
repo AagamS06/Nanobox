@@ -7,6 +7,9 @@ import { playTone } from "../widgets/built-in/Alarm/tones";
 import type { AlarmSound } from "../storage/alarms";
 import { ThemeCustomizer } from "./ThemeCustomizer";
 import { isColorblindPalette, setColorblindPalette } from "../core/colorblindPalette";
+import { ModeSwitch } from "./ModeSwitch";
+import { APP_MODE_HINTS, APP_MODE_OPTIONS, AppMode, getAppMode, setAppMode } from "../core/appMode";
+import { getPanelSize, PANEL_SIZE_OPTIONS, PanelSizeId, setPanelSize } from "../island/islandWindow";
 import "./SettingsPanel.css";
 
 const SOUND_LABELS: Record<AlarmSound, string> = { chime: "Chime", beep: "Beep", digital: "Digital" };
@@ -36,7 +39,27 @@ export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
   });
   const [customizingId, setCustomizingId] = useState<ThemeId | null>(null);
   const [colorblindPalette, setColorblindPaletteLocal] = useState(isColorblindPalette());
+  const [appMode, setAppModeLocal] = useState<AppMode>("desktop");
+  const [savedAppMode, setSavedAppMode] = useState<AppMode>("desktop");
+  const [panelSize, setPanelSizeLocal] = useState<PanelSizeId>("roomy");
   const panelRef = useRef<HTMLDivElement>(null);
+
+  // Re-read the live values every time the panel opens. They can change while
+  // it's closed (the theme switcher, the island, the tray), and saving stale
+  // copies would quietly undo those changes.
+  useEffect(() => {
+    if (!open) return;
+    setThemeLocal(getTheme());
+    setHighContrastLocal(isHighContrast());
+    setColorblindPaletteLocal(isColorblindPalette());
+    getAppMode().then((m) => {
+      setAppModeLocal(m);
+      setSavedAppMode(m);
+    });
+    getPanelSize()
+      .then(setPanelSizeLocal)
+      .catch(() => {});
+  }, [open]);
 
   function refreshThemeTint(id: ThemeId) {
     setThemeTintsLocal((prev) => {
@@ -77,7 +100,12 @@ export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
     }
     document.documentElement.style.setProperty("font-size", `${fontSize * 100}%`);
     document.documentElement.style.setProperty("opacity", opacity.toString());
+    setPanelSize(panelSize).catch((err) => console.error("failed to save island size", err));
     onClose();
+    // Last, since switching mode shows / hides this window.
+    if (appMode !== savedAppMode) {
+      setAppMode(appMode).catch((err) => console.error("failed to switch mode", err));
+    }
   }
 
   function resetToDefaults() {
@@ -103,6 +131,21 @@ export function SettingsPanel({ open, onClose }: SettingsPanelProps) {
         </div>
 
         <div className="settings-panel__content">
+          {/* Desktop or island */}
+          <div className="settings-section">
+            <div className="settings-section__row">
+              <span className="settings-section__label">Nanobox mode</span>
+              <ModeSwitch label="Nanobox mode" options={APP_MODE_OPTIONS} value={appMode} onChange={setAppModeLocal} />
+            </div>
+            <p className="settings-section__hint">{APP_MODE_HINTS[appMode]}</p>
+            {appMode === "island" && (
+              <div className="settings-section__row settings-section__row--sub">
+                <span className="settings-section__label">Island size</span>
+                <ModeSwitch label="Island size" options={PANEL_SIZE_OPTIONS} value={panelSize} onChange={setPanelSizeLocal} />
+              </div>
+            )}
+          </div>
+
           {/* Theme Selector */}
           <div className="settings-section">
             <label className="settings-section__label">Theme</label>

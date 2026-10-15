@@ -4,6 +4,7 @@ use std::sync::Arc;
 use tauri::{Emitter, Manager, WindowEvent};
 use tauri_plugin_sql::{Migration, MigrationKind};
 
+mod app_mode;
 mod clipboard;
 mod hotkeys;
 mod icons;
@@ -375,16 +376,34 @@ fn toggle_island(app: &tauri::AppHandle) {
     }
 }
 
+/// The tray's "Show / Hide Nanobox": the widgets window in desktop mode, the
+/// island in island mode (where the widgets window stays hidden).
 fn toggle_overlay(app: &tauri::AppHandle) {
+    if app_mode::current(app) == app_mode::AppMode::Island {
+        toggle_island(app);
+        return;
+    }
     if let Some(window) = app.get_webview_window("overlay") {
         let visible = window.is_visible().unwrap_or(false);
-        if visible {
+        let minimized = window.is_minimized().unwrap_or(false);
+        if visible && !minimized {
             let _ = window.hide();
         } else {
             let _ = window.show();
+            let _ = window.unminimize();
             let _ = window.set_focus();
+            // Showing doesn't change the layer: it's still behind every app.
+            app_mode::pin_to_back(&window);
         }
     }
+}
+
+fn switch_mode_from_tray(app: &tauri::AppHandle) {
+    let next = match app_mode::current(app) {
+        app_mode::AppMode::Desktop => app_mode::AppMode::Island,
+        app_mode::AppMode::Island => app_mode::AppMode::Desktop,
+    };
+    let _ = app_mode::switch(app, next);
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -423,6 +442,9 @@ pub fn run() {
             launcher::open_target,
             hotkeys::set_hotkeys_enabled,
             hotkeys::peek_widgets,
+            app_mode::get_app_mode,
+            app_mode::set_app_mode,
+            app_mode::show_tool_window,
             clipboard::clipboard_history,
             clipboard::clipboard_copy,
             clipboard::clipboard_remove,
@@ -437,10 +459,18 @@ pub fn run() {
         .setup(|app| {
             clipboard::start_watcher(app.handle().clone());
 
+            // Desktop or island mode decides which windows appear. The widgets
+            // window starts hidden (tauri.conf.json) so island mode never flashes it.
+            let mode = app_mode::load(app.handle());
+            app.manage(app_mode::AppModeState::new(mode));
+
             let show_hide = MenuItem::with_id(app, "show_hide", "Show / Hide Nanobox", true, None::<&str>)?;
             let island = MenuItem::with_id(app, "island", "Show / Hide island", true, None::<&str>)?;
+            let switch_mode = MenuItem::with_id(app, "switch_mode", app_mode::tray_label(mode), true, None::<&str>)?;
             let quit = PredefinedMenuItem::quit(app, Some("Quit Nanobox"))?;
-            let menu = Menu::with_items(app, &[&show_hide, &island, &quit])?;
+            let menu = Menu::with_items(app, &[&show_hide, &island, &switch_mode, &quit])?;
+            app_mode::set_tray_item(app.handle(), switch_mode.clone());
+            app_mode::apply(app.handle(), mode, true);
 
             TrayIconBuilder::new()
                 .icon(app.default_window_icon().unwrap().clone())
@@ -450,6 +480,7 @@ pub fn run() {
                     match event.id.as_ref() {
                         "show_hide" => toggle_overlay(app),
                         "island" => toggle_island(app),
+                        "switch_mode" => switch_mode_from_tray(app),
                         _ => {}
                     }
                 })
@@ -463,6 +494,13 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(|window, event| {
+            // Peek is temporary: once you click into another app, the widgets
+            // go back behind everything.
+            if let WindowEvent::Focused(false) = event {
+                if window.label() == "overlay" && hotkeys::is_peeking() {
+                    hotkeys::end_peek(window.app_handle());
+                }
+            }
             // Closing the overlay or island just hides it — the tray icon is
             // the real quit path.
             if let WindowEvent::CloseRequested { api, .. } = event {
