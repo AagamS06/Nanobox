@@ -9,61 +9,35 @@ import {
   WidgetInstance,
 } from "../storage/widgetInstances";
 import { isHidingOthers, subscribeFocusMode } from "../core/focusModeStore";
-import { deriveShades } from "../core/colorShades";
-import { BORDER_STYLE_LABELS, BORDER_STYLES, borderStyleCss, BorderStyleId } from "../core/widgetBorderStyles";
 import { CustomWidget } from "./built-in";
 import { WidgetChromeContext } from "./WidgetChromeContext";
 import { DEFAULT_SIZE, WIDGET_LABELS, WIDGET_REGISTRY, WidgetId } from "./registry";
 import { findFreeSpot } from "./placement";
+import {
+  draftFor,
+  parseStyleSettings,
+  PopoverDraft,
+  serializeStyleSettings,
+  widgetStyleVars,
+  WidgetStyleSettings,
+  WidgetStylePopover,
+} from "./widgetStyle";
 import "./WidgetGrid.css";
 
 const GRID_SNAP = 8;
 const MIN_SIZE = 160;
 const snap = (n: number) => Math.round(n / GRID_SNAP) * GRID_SNAP;
 
-interface WidgetStyleSettings {
-  color?: string;
-  borderStyle?: BorderStyleId;
-}
-
-/** Staged (not-yet-saved) edits for whichever widget's settings popover is currently open. */
-interface PopoverDraft extends WidgetStyleSettings {
-  opacity: number;
-}
-
-function parseStyleSettings(raw: string | null): WidgetStyleSettings {
-  if (!raw) return {};
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return {};
-  }
-}
-
 // When `draft` is supplied (the instance's settings popover is open), the staged-but-unsaved
 // values are used for live preview instead of the persisted instance fields.
 function cellStyle(instance: WidgetInstance, draft?: PopoverDraft): CSSProperties {
-  const style: CSSProperties = {
+  return {
     left: instance.x,
     top: instance.y,
     width: instance.w,
     height: instance.h,
-    opacity: draft ? draft.opacity : instance.opacity,
+    ...widgetStyleVars(instance, draft),
   };
-  const { color, borderStyle } = draft ?? parseStyleSettings(instance.style_settings);
-  const shades = color ? deriveShades(color) : null;
-  if (shades) {
-    Object.assign(style, {
-      "--nb-accent": shades.accent,
-      "--nb-accent-text": shades.accentText,
-      "--nb-surface-alt": shades.surfaceAlt,
-    });
-  }
-  if (borderStyle) {
-    const css = borderStyleCss(borderStyle, shades?.accent ?? "var(--nb-accent)");
-    Object.assign(style, { "--nb-widget-border": css.border, "--nb-widget-shadow": css.boxShadow });
-  }
-  return style;
 }
 
 export function WidgetGrid() {
@@ -140,12 +114,7 @@ export function WidgetGrid() {
   }
 
   function setStyle(id: number, next: WidgetStyleSettings) {
-    // Drop undefined-valued keys (e.g. a "reset to theme" click) before deciding
-    // whether anything's actually set — Object.keys() counts them even though
-    // JSON.stringify would silently omit them, which previously could persist
-    // "{}" instead of clearing the column to NULL.
-    const cleaned = Object.fromEntries(Object.entries(next).filter(([, v]) => v !== undefined)) as WidgetStyleSettings;
-    const json = Object.keys(cleaned).length > 0 ? JSON.stringify(cleaned) : null;
+    const json = serializeStyleSettings(next);
     setInstances((prev) => prev.map((i) => (i.id === id ? { ...i, style_settings: json } : i)));
     updateWidgetStyle(id, json).catch((err) => console.error("failed to save widget style", err));
   }
@@ -160,8 +129,7 @@ export function WidgetGrid() {
       setPopoverDraft(null);
       return;
     }
-    const { color, borderStyle } = parseStyleSettings(instance.style_settings);
-    setPopoverDraft({ opacity: instance.opacity, color, borderStyle });
+    setPopoverDraft(draftFor(instance));
     setOpenPopoverId(instance.id);
   }
 
@@ -309,67 +277,13 @@ export function WidgetGrid() {
             style={cellStyle(instance, isPopoverOpen ? draft : undefined)}
           >
             {isPopoverOpen && (
-              <div className="widget-grid__popover" data-no-drag ref={popoverRef}>
-                <label>
-                  Opacity
-                  <input
-                    type="range"
-                    min={0.2}
-                    max={1}
-                    step={0.05}
-                    value={draft.opacity}
-                    onChange={(e) => setPopoverDraft({ ...draft, opacity: Number(e.target.value) })}
-                  />
-                </label>
-
-                <label>
-                  Colour
-                  <div className="widget-grid__color-row">
-                    <input
-                      type="color"
-                      value={draft.color ?? "#7c9cff"}
-                      onChange={(e) => setPopoverDraft({ ...draft, color: e.target.value })}
-                    />
-                    {draft.color && (
-                      <button className="widget-grid__color-reset" onClick={() => setPopoverDraft({ ...draft, color: undefined })}>
-                        Reset to theme
-                      </button>
-                    )}
-                  </div>
-                </label>
-
-                <label>
-                  Style
-                  <select
-                    value={draft.borderStyle ?? ""}
-                    onChange={(e) =>
-                      setPopoverDraft({
-                        ...draft,
-                        borderStyle: (e.target.value || undefined) as BorderStyleId | undefined,
-                      })
-                    }
-                  >
-                    <option value="">Theme default</option>
-                    {BORDER_STYLES.map((id) => (
-                      <option key={id} value={id}>
-                        {BORDER_STYLE_LABELS[id]}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <div className="widget-grid__popover-actions">
-                  <button className="widget-grid__popover-btn" onClick={() => closePopover(false)}>
-                    Cancel
-                  </button>
-                  <button
-                    className="widget-grid__popover-btn widget-grid__popover-btn--primary"
-                    onClick={() => closePopover(true)}
-                  >
-                    Save
-                  </button>
-                </div>
-              </div>
+              <WidgetStylePopover
+                ref={popoverRef}
+                draft={draft}
+                onChange={setPopoverDraft}
+                onCancel={() => closePopover(false)}
+                onSave={() => closePopover(true)}
+              />
             )}
 
             <WidgetChromeContext.Provider

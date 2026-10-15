@@ -352,8 +352,16 @@ most valuable contributions right now.
 A pill at the top of your screen with the time and what's playing. Hover it
 and it opens into quick capture (to Brain Dump or To-do), Music controls,
 today's Plans, Clipboard history, an app launcher, a wallpaper switcher and
-quick Settings. `Ctrl+Shift+Space` opens it from anywhere. See
-[docs/WIDGETS.md](docs/WIDGETS.md#the-island).
+quick Settings. `Ctrl+Shift+Space` opens it from anywhere.
+
+**Two ways to run Nanobox** (Settings → Nanobox mode):
+
+- **Desktop mode**: your widgets sit in a window that always stays behind
+  your other apps. You can still resize, minimise and maximise it.
+- **Island mode**: everything lives in the island, including a Widgets tab
+  with all your widgets and their colour, border and opacity settings.
+
+See [docs/WIDGETS.md](docs/WIDGETS.md#desktop-mode-and-island-mode).
 
 ### 🧩 Extend without touching core
 

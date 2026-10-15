@@ -25,7 +25,7 @@
         "resizable": true,
         "skipTaskbar": false,
         "shadow": false,
-        "visible": true,
+        "visible": false,
         "alwaysOnBottom": true,
         "backgroundThrottling": "disabled"
       },
@@ -42,7 +42,8 @@
         "skipTaskbar": true,
         "shadow": false,
         "visible": false,
-        "focus": false
+        "focus": false,
+        "backgroundThrottling": "disabled"
       }
     ],
     "macOSPrivateApi": true,

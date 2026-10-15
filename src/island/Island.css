@@ -676,3 +676,177 @@ html.is-island #root {
 .island-settings > .island-muted {
   margin: 4px 0 0;
 }
+
+/* The panel stays mounted in island mode (so widgets keep running) and is
+   only hidden while the island is a pill. */
+.island-panel[hidden],
+.island-panel__pane[hidden] {
+  display: none !important;
+}
+
+.island-panel__pane {
+  height: 100%;
+}
+
+.island-tabs {
+  grid-template-columns: repeat(var(--island-tab-count, 6), 1fr);
+}
+
+.island-tabbar {
+  display: flex;
+  gap: 6px;
+  align-items: stretch;
+}
+
+.island-tabbar .island-tabs {
+  flex: 1;
+  min-width: 0;
+}
+
+.island-pin {
+  flex: none;
+  width: 34px;
+  border: none;
+  border-radius: 12px;
+  background: rgba(127, 127, 127, 0.1);
+  color: var(--nb-text-muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.island-pin.is-on {
+  background: var(--nb-accent);
+  color: var(--nb-accent-text);
+}
+
+.island-pin:focus-visible {
+  outline: 2px solid var(--nb-accent);
+  outline-offset: 1px;
+}
+
+.island-pill__alarm {
+  color: var(--nb-accent);
+  font-weight: 600;
+}
+
+/* ---------- Widgets tab (island mode) ---------- */
+
+.island-widgets__add {
+  position: relative;
+  flex: none;
+}
+
+.island-widgets__add-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 30;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+  width: 300px;
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 6px;
+  border: var(--nb-border-style);
+  border-radius: 12px;
+  background: var(--nb-surface);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.island-widgets__add-menu button {
+  padding: 7px 9px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: var(--nb-text);
+  font: inherit;
+  font-size: 0.84em;
+  text-align: left;
+  cursor: pointer;
+}
+
+.island-widgets__add-menu button:hover,
+.island-widgets__add-menu button:focus-visible {
+  background: rgba(127, 127, 127, 0.16);
+}
+
+.island-widgets__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr));
+  gap: 10px;
+  align-items: start;
+}
+
+.island-widgets__card {
+  position: relative;
+  min-width: 0;
+  transition: opacity 0.25s ease, transform 0.15s ease;
+}
+
+.island-widgets__content {
+  height: 100%;
+  overflow: hidden;
+  border-radius: var(--nb-radius, 14px);
+}
+
+.island-widgets__card .widget-frame {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.island-widgets__card .widget-frame__body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.island-widgets__card.is-dragging {
+  opacity: 0.55 !important;
+}
+
+.island-widgets__card.is-drop-target {
+  transform: scale(0.98);
+  outline: 2px dashed var(--nb-accent);
+  outline-offset: 2px;
+  border-radius: var(--nb-radius, 14px);
+}
+
+.island-widgets__card.is-new .widget-frame {
+  animation: widget-added 1.5s ease-out;
+}
+
+.island-widgets__popover {
+  z-index: 25;
+  width: 220px;
+}
+
+.island-widgets__move {
+  display: flex;
+  gap: 6px;
+}
+
+.island-widgets__move button {
+  flex: 1;
+}
+
+.island-widgets__move button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.island-settings select {
+  max-width: 180px;
+}
+
+.island-setting--stacked {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.island-setting .mode-switch {
+  flex: none;
+  min-width: 200px;
+}

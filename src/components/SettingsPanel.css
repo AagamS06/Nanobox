@@ -356,3 +356,11 @@
 .settings-panel__btn--secondary:hover {
   color: var(--nb-text);
 }
+
+.settings-section__row .mode-switch {
+  min-width: 200px;
+}
+
+.settings-section__row--sub {
+  margin-top: 10px;
+}

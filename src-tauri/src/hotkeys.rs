@@ -5,14 +5,16 @@
 //!   capture box focused, so a thought goes into Brain Dump or To-do without
 //!   leaving whatever you're doing.
 //! - Peek (Ctrl/Cmd+Shift+\): brings the widgets in front of your windows;
-//!   press again to send them back behind.
+//!   press again (or click into another app) to send them back behind. In
+//!   island mode it opens or closes the island instead.
 //!
 //! Users can switch both off (island Settings tab) if they clash with another
 //! app; the JS side persists that choice and calls `set_hotkeys_enabled` at
 //! startup.
 
 use std::sync::atomic::{AtomicBool, Ordering};
-use tauri::{AppHandle, Emitter, Manager, Runtime};
+use crate::app_mode::{self, AppMode};
+use tauri::{AppHandle, Emitter, Manager, Wry};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 
 pub const CAPTURE: &str = "CommandOrControl+Shift+Space";
@@ -24,7 +26,7 @@ fn parse(accelerator: &str) -> Shortcut {
     accelerator.parse().expect("built-in hotkey must parse")
 }
 
-pub fn plugin<R: Runtime>() -> tauri::plugin::TauriPlugin<R> {
+pub fn plugin() -> tauri::plugin::TauriPlugin<Wry> {
     let capture = parse(CAPTURE);
     let peek = parse(PEEK);
     tauri_plugin_global_shortcut::Builder::new()
@@ -42,20 +44,44 @@ pub fn plugin<R: Runtime>() -> tauri::plugin::TauriPlugin<R> {
 }
 
 /// Brings the (normally always-on-bottom) widgets window to the front, or
-/// sends it back behind other windows.
-pub fn toggle_peek<R: Runtime>(app: &AppHandle<R>) {
-    let Some(window) = app.get_webview_window("overlay") else { return };
-    let peeking = !PEEKING.load(Ordering::Relaxed);
-    PEEKING.store(peeking, Ordering::Relaxed);
-    if peeking {
-        let _ = window.set_always_on_bottom(false);
-        let _ = window.show();
-        let _ = window.set_always_on_top(true);
-        let _ = window.set_focus();
-    } else {
-        let _ = window.set_always_on_top(false);
-        let _ = window.set_always_on_bottom(true);
+/// sends it back behind other windows. In island mode, opens or closes the
+/// island instead.
+pub fn toggle_peek(app: &AppHandle<Wry>) {
+    if app_mode::current(app) == AppMode::Island {
+        let _ = app.emit_to("island", "island:toggle", ());
+        return;
     }
+    if PEEKING.load(Ordering::Relaxed) {
+        end_peek(app);
+    } else {
+        start_peek(app);
+    }
+}
+
+pub fn start_peek(app: &AppHandle<Wry>) {
+    let Some(window) = app.get_webview_window("overlay") else { return };
+    PEEKING.store(true, Ordering::Relaxed);
+    let _ = window.set_always_on_bottom(false);
+    let _ = window.show();
+    let _ = window.unminimize();
+    let _ = window.set_always_on_top(true);
+    let _ = window.set_focus();
+}
+
+/// Sends the widgets window back behind everything. Called when Peek is
+/// pressed again and whenever the window loses focus while peeking, so it
+/// can never be left stuck in front.
+pub fn end_peek(app: &AppHandle<Wry>) {
+    if !PEEKING.swap(false, Ordering::Relaxed) {
+        return;
+    }
+    if let Some(window) = app.get_webview_window("overlay") {
+        app_mode::pin_to_back(&window);
+    }
+}
+
+pub fn is_peeking() -> bool {
+    PEEKING.load(Ordering::Relaxed)
 }
 
 #[tauri::command]

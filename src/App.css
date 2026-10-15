@@ -20,3 +20,53 @@
   from { opacity: 0; }
   to   { opacity: 1; }
 }
+
+/* Island mode: this window only appears to host Settings / the Block Builder. */
+.island-mode-host {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px;
+  text-align: center;
+  color: var(--nb-text);
+  background: var(--nb-surface);
+  border-radius: var(--nb-radius, 14px);
+}
+
+.island-mode-host h1 {
+  margin: 0;
+  font-size: 1.3em;
+}
+
+.island-mode-host p {
+  margin: 0;
+  color: var(--nb-text-muted);
+}
+
+.island-mode-host__buttons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.island-mode-host__buttons button {
+  padding: 8px 14px;
+  border: var(--nb-border-style);
+  border-radius: 10px;
+  background: var(--nb-surface-alt);
+  color: var(--nb-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.island-mode-host__buttons .island-mode-host__primary {
+  background: var(--nb-accent);
+  color: var(--nb-accent-text);
+  border-color: transparent;
+  font-weight: 600;
+}

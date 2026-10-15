@@ -86,14 +86,43 @@ playing (or what's next today). Hover over it, scroll down on it, or press
   never recorded, and it can be paused.
 - **Apps** — your Shortcuts, one click away.
 - **Wallpapers** — pick a folder of images and set your desktop wallpaper.
-- **Settings** — theme, show/hide widgets, clipboard history and hotkeys
-  on/off, hide the island (bring it back from the tray icon menu).
+- **Settings** — desktop/island mode, island size, theme, show/hide
+  widgets, clipboard history and hotkeys on/off, hide the island (bring it
+  back from the tray icon menu).
+
+A 📌 button next to the tabs keeps the island open while you work in it.
+
+## Desktop mode and island mode
+
+Pick one under **Settings → Nanobox mode** (full Settings or the island's
+Settings tab), or from the tray icon menu.
+
+- **Desktop mode** (the default): widgets sit in a window that always stays
+  behind every other app. You can still drag it, resize it, minimise it and
+  maximise it. Clicking it, restoring it from the taskbar or maximising it
+  doesn't bring it in front of your other apps. The island is optional.
+  `Ctrl+Shift+\` (Peek) brings the widgets to the front for a moment. They go
+  back behind as soon as you click into another app.
+- **Island mode**: the desktop window is hidden and everything lives in the
+  island. It gains a **Widgets** tab with every widget you'd have on the
+  desktop, in a scrolling grid. Use **+ Add widget** to add one and × to remove it.
+  Drag a widget's title onto another to swap them. ⚙ sets a widget's colour,
+  border style, opacity and height. Pick the island's size (Compact, Roomy or
+  Large) in Settings. Widgets keep running while the island is closed, and an
+  alarm that rings opens the island so you can dismiss it. Full Settings and
+  the Block Builder open in a normal window on top and close back into the island.
+
+Both modes use the same widgets and data. Switching back to desktop mode puts
+every widget where it was on the desktop. Rearranging the island doesn't move
+anything on the desktop.
 
 ## Scheduling
 
 Alarms, gentle reminders, routines and to-do nudges are all fired by one
 app-wide scheduler (`src/core/scheduler.ts`) that runs for as long as
-Nanobox is open — they keep working even if you close their widgets. It
+Nanobox is open — they keep working even if you close their widgets. (It
+runs in the desktop window in desktop mode and in the island in island
+mode.) It
 uses your computer's local time, and if the computer was asleep at the
 exact minute it still fires up to five minutes late rather than not at all.
 
